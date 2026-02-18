@@ -14,6 +14,7 @@ import { UsersService } from '../users/users.service';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { Public } from './public.decorator';
 import { LoginDto } from './dto/login.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { User } from './user.decorator';
 import { PublicUserProfile } from '../users/user.entity';
 import { DatabaseReadyGuard } from '../database/database-ready.guard';
@@ -35,6 +36,20 @@ export class AuthController {
       throw new UnauthorizedException();
     }
 
+    const accessToken = this.authService.generateAccessToken(user);
+    const refreshToken = await this.authService.generateRefreshToken(user);
+
+    return {
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    };
+  }
+
+  @Public()
+  @HttpCode(200)
+  @Post('google')
+  async googleLogin(@Body() data: GoogleAuthDto) {
+    const user = await this.authService.validateGoogleToken(data.id_token);
     const accessToken = this.authService.generateAccessToken(user);
     const refreshToken = await this.authService.generateRefreshToken(user);
 

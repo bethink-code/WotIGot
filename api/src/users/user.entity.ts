@@ -28,8 +28,14 @@ export class User {
   @Index({ unique: true })
   user_name: string;
 
-  @Column()
-  password: string;
+  @Column({ nullable: true })
+  password: string | null;
+
+  @Column({ nullable: true, unique: true })
+  google_id: string | null;
+
+  @Column({ nullable: true })
+  email: string | null;
 
   @Column({ type: 'enum', default: UserRole.User, enum: UserRole })
   role: UserRole;

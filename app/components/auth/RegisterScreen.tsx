@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TextInput } from '@/components/ui/TextInput';
@@ -6,7 +6,8 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { Icon } from '@/components/ui/Icon';
 import { Colors, Typography, Spacing, Radii } from '@/constants/DesignTokens';
-import { useCreateUser, useLogin } from '@/lib/mutations';
+import { useCreateUser, useLogin, useGoogleLogin } from '@/lib/mutations';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 interface RegisterScreenProps {
   onClose?: () => void;
@@ -22,8 +23,24 @@ export function RegisterScreen({ onClose = () => {}, onNavigateToLogin }: Regist
   
   const { mutate: createUser, isPending: isCreating } = useCreateUser();
   const { mutate: login, isPending: isLoggingIn } = useLogin();
-  
-  const isPending = isCreating || isLoggingIn;
+  const { mutate: googleLogin, isPending: isGooglePending } = useGoogleLogin();
+  const { request, response, promptAsync } = useGoogleAuth();
+
+  const isPending = isCreating || isLoggingIn || isGooglePending;
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.params.id_token;
+      if (idToken) {
+        setError(null);
+        googleLogin(idToken, {
+          onError: (err: any) => {
+            setError(err?.response?.data?.message || 'Google sign-up failed');
+          },
+        });
+      }
+    }
+  }, [response]);
 
   const handleRegister = () => {
     setError(null);
@@ -74,7 +91,8 @@ export function RegisterScreen({ onClose = () => {}, onNavigateToLogin }: Regist
   };
 
   const handleGoogleSignUp = () => {
-    console.log('Google sign up');
+    setError(null);
+    promptAsync();
   };
 
   return (
@@ -151,8 +169,9 @@ export function RegisterScreen({ onClose = () => {}, onNavigateToLogin }: Regist
 
             <View style={styles.googleButtonContainer}>
               <SecondaryButton
-                label="Sign up with Google"
+                label={isGooglePending ? 'Signing up...' : 'Sign up with Google'}
                 onPress={handleGoogleSignUp}
+                disabled={!request || isPending}
                 googleIcon
               />
             </View>

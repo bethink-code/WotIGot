@@ -124,6 +124,21 @@ export const useLogin = () => {
   });
 };
 
+export const useGoogleLogin = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    throwOnError: false,
+    mutationFn: async (idToken: string) => {
+      const { data } = await publicApi.post('/auth/google', { id_token: idToken });
+      await setTokens(data);
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['/auth/me'],
+      }),
+  });
+};
+
 export const useLogout = () => {
   const queryClient = useQueryClient();
   return useMutation({

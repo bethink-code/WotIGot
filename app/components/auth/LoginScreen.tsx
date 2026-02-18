@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Pressable, Image } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -7,8 +7,9 @@ import { PrimaryButton } from '@/components/ui/PrimaryButton';
 import { SecondaryButton } from '@/components/ui/SecondaryButton';
 import { Icon } from '@/components/ui/Icon';
 import { Colors, Typography, Spacing, Radii } from '@/constants/DesignTokens';
-import { useLogin } from '@/lib/mutations';
+import { useLogin, useGoogleLogin } from '@/lib/mutations';
 import { useSharedAxisTransition } from '@/hooks/useSharedAxisTransition';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 
 interface LoginScreenProps {
   onClose?: () => void;
@@ -20,8 +21,24 @@ export function LoginScreen({ onClose, onNavigateToRegister }: LoginScreenProps)
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const { mutate, isPending } = useLogin();
-  
+  const { mutate: googleLogin, isPending: isGooglePending } = useGoogleLogin();
+  const { request, response, promptAsync } = useGoogleAuth();
+
   const { screenAnimatedStyle, animatedExit } = useSharedAxisTransition();
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const idToken = response.params.id_token;
+      if (idToken) {
+        setError(null);
+        googleLogin(idToken, {
+          onError: (err: any) => {
+            setError(err?.response?.data?.message || 'Google sign-in failed');
+          },
+        });
+      }
+    }
+  }, [response]);
 
   const handleClose = useCallback(() => {
     if (onClose) {
@@ -52,7 +69,8 @@ export function LoginScreen({ onClose, onNavigateToRegister }: LoginScreenProps)
   };
 
   const handleGoogleSignUp = () => {
-    console.log('Google sign up');
+    setError(null);
+    promptAsync();
   };
 
   return (
@@ -112,17 +130,26 @@ export function LoginScreen({ onClose, onNavigateToRegister }: LoginScreenProps)
             <PrimaryButton
               label={isPending ? 'Signing in...' : 'Sign In'}
               onPress={handleLogin}
-              disabled={isPending}
+              disabled={isPending || isGooglePending}
               variant="dark"
             />
 
             <View style={styles.googleButtonContainer}>
               <SecondaryButton
-                label="Sign up with Google"
+                label={isGooglePending ? 'Signing in...' : 'Sign in with Google'}
                 onPress={handleGoogleSignUp}
+                disabled={!request || isPending || isGooglePending}
                 googleIcon
               />
             </View>
+
+            {onNavigateToRegister && (
+              <Pressable style={styles.registerLink} onPress={onNavigateToRegister}>
+                <Text style={styles.registerText}>
+                  Don't have an account? <Text style={styles.registerTextBold}>Sign Up</Text>
+                </Text>
+              </Pressable>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -214,6 +241,19 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.body2,
     fontFamily: Typography.fontFamily.bodyMedium,
     color: Colors.danger,
+  },
+  registerLink: {
+    marginTop: Spacing.xl,
+    alignItems: 'center',
+  },
+  registerText: {
+    fontSize: Typography.fontSize.body2,
+    fontFamily: Typography.fontFamily.bodyRegular,
+    color: Colors.textMuted,
+  },
+  registerTextBold: {
+    fontFamily: Typography.fontFamily.bodySemiBold,
+    color: Colors.textDark,
   },
 });
 

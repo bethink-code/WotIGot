@@ -42,6 +42,7 @@ import { IndexController } from './index.controller';
         PGUSER: Joi.string().optional(),
         PGPASSWORD: Joi.string().optional(),
         PGDATABASE: Joi.string().optional(),
+        GOOGLE_CLIENT_ID: Joi.string().required(),
       }),
     }),
     LazyDatabaseModule,

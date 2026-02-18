@@ -1,4 +1,5 @@
 import { LoginScreen } from '@/components/auth/LoginScreen';
+import { RegisterScreen } from '@/components/auth/RegisterScreen';
 import { OnboardingScreen } from '@/components/auth/OnboardingScreen';
 import { useQuery } from '@tanstack/react-query';
 import { Stack, usePathname } from 'expo-router';
@@ -32,7 +33,7 @@ const App = ({ isAssetsLoaded }: AppProps) => {
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
   const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
-  const [showLogin, setShowLogin] = useState(false);
+  const [authScreen, setAuthScreen] = useState<'none' | 'login' | 'register'>('none');
 
   useEffect(() => {
     const init = async () => {
@@ -69,15 +70,19 @@ const App = ({ isAssetsLoaded }: AppProps) => {
   const handleOnboardingComplete = async () => {
     await AsyncStorage.setItem(ONBOARDING_COMPLETE_KEY, 'true');
     setHasSeenOnboarding(true);
-    setShowLogin(true);
+    setAuthScreen('register');
   };
 
   const handleGoToLogin = () => {
-    setShowLogin(true);
+    setAuthScreen('login');
+  };
+
+  const handleGoToRegister = () => {
+    setAuthScreen('register');
   };
 
   const handleBackToOnboarding = () => {
-    setShowLogin(false);
+    setAuthScreen('none');
     setHasSeenOnboarding(false);
   };
 
@@ -86,17 +91,26 @@ const App = ({ isAssetsLoaded }: AppProps) => {
   }
 
   if (!isPublicRoute && (!me || isError)) {
-    if (!hasSeenOnboarding && !showLogin) {
+    if (!hasSeenOnboarding && authScreen === 'none') {
       return (
-        <OnboardingScreen 
+        <OnboardingScreen
           onComplete={handleOnboardingComplete}
           onLogin={handleGoToLogin}
         />
       );
     }
+    if (authScreen === 'register') {
+      return (
+        <RegisterScreen
+          onClose={handleBackToOnboarding}
+          onNavigateToLogin={handleGoToLogin}
+        />
+      );
+    }
     return (
-      <LoginScreen 
+      <LoginScreen
         onClose={handleBackToOnboarding}
+        onNavigateToRegister={handleGoToRegister}
       />
     );
   }

@@ -91,9 +91,11 @@ export class UsersService {
       throw new Error('User not found');
     }
 
-    const isValid = await this.validatePassword(currentPassword, user.password);
-    if (!isValid) {
-      throw new Error('Current password is incorrect');
+    if (user.password) {
+      const isValid = await this.validatePassword(currentPassword, user.password);
+      if (!isValid) {
+        throw new Error('Current password is incorrect');
+      }
     }
 
     user.password = await this.hashPassword(newPassword);
@@ -105,6 +107,53 @@ export class UsersService {
    */
   async findById(id: number): Promise<User | null> {
     return this.usersRepository.findOne({ where: { id } });
+  }
+
+  /**
+   * Find a user by Google ID
+   */
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { google_id: googleId } });
+  }
+
+  /**
+   * Find a user by email
+   */
+  async findByEmail(email: string): Promise<User | null> {
+    return this.usersRepository.findOne({ where: { email } });
+  }
+
+  /**
+   * Create a user from Google OAuth (no password required)
+   */
+  async createFromGoogle(data: {
+    name: string;
+    email: string;
+    google_id: string;
+  }): Promise<User> {
+    const user = await this.usersRepository.create({
+      name: data.name,
+      user_name: data.email,
+      email: data.email,
+      google_id: data.google_id,
+      password: null,
+    });
+    return this.usersRepository.save(user);
+  }
+
+  /**
+   * Link a Google account to an existing user
+   */
+  async linkGoogleAccount(userId: number, googleId: string, email: string): Promise<User> {
+    const user = await this.usersRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new Error('User not found');
+    }
+    user.google_id = googleId;
+    if (!user.email) {
+      user.email = email;
+    }
+    return this.usersRepository.save(user);
   }
 
   /**
