@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>3. Smart Capture</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Paste styles from Master v5 response here - simplified for brevity */
+        :root { --bg-canvas: #FFFDF9; --text-dark: #2D3436; --col-green: #00B894; --col-orange: #FA8231; --col-yellow: #F7B731; --col-orange-soft: #FFF0E6; --col-yellow-soft: #FFF5D8; }
+        body { margin: 0; background: #333; font-family: 'Poppins', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .mobile-frame { width: 375px; height: 812px; background: var(--bg-canvas); border-radius: 44px; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+        
+        /* Modal */
+        .overlay { position: absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.4); z-index:100; display:flex; align-items:flex-end; opacity:0; pointer-events:none; transition:0.3s; backdrop-filter:blur(2px); }
+        .overlay.open { opacity:1; pointer-events:auto; }
+        .sheet { width:90%; margin:0 auto 100px auto; background:white; border-radius:32px; padding:24px; transform:translateY(100%); transition:0.3s cubic-bezier(0.2,0.8,0.2,1); display:flex; flex-direction:column; }
+        .overlay.open .sheet { transform:translateY(0); }
+        
+        /* Cards */
+        .card { background: #F8F9FA; border-radius: 20px; padding: 12px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(0,0,0,0.05); cursor: pointer; }
+        .thumb { width: 50px; height: 50px; background: white; border: 1px solid #eee; border-radius: 16px; display:flex; justify-content:center; align-items:center; color:var(--col-orange); font-size:24px; }
+        .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 20px; }
+        .act-card { background: #FAFAFA; padding: 20px 4px; border-radius: 20px; display:flex; flex-direction:column; align-items:center; gap:10px; cursor: pointer; }
+        .icon-box { width: 50px; height: 50px; border-radius: 16px; display:flex; justify-content:center; align-items:center; font-size:24px; }
+
+        /* Capture Choice Screen */
+        .screen { position: absolute; top:0; left:0; width:100%; height:100%; background:var(--bg-canvas); transform:translateX(100%); transition:0.3s; z-index:110; display:flex; flex-direction:column; }
+        .screen.active { transform:translateX(0); }
+        .opt { margin: 12px 24px; padding: 30px; background: white; border-radius: 32px; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.05); cursor: pointer; }
+        
+        /* Loading */
+        .loading { background: rgba(0,0,0,0.9); color: white; align-items: center; justify-content: center; text-align: center; }
+        .loader-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 4px; margin-top: 20px; overflow: hidden; }
+        .fill { width: 0%; height: 100%; background: var(--col-orange); animation: fill 2s forwards; }
+        @keyframes fill { to { width: 100%; } }
+
+        /* Review */
+        .hero { height: 220px; background: #eee; }
+        .form { padding: 24px; border-radius: 32px 32px 0 0; background: white; margin-top: -32px; flex: 1; }
+        .input { background: #F8F9FA; padding: 16px; border-radius: 16px; margin-bottom: 16px; display: flex; justify-content: space-between; }
+    </style>
+</head>
+<body>
+    <div class="mobile-frame">
+        <!-- Header BG -->
+        <div style="padding:60px 24px; background:var(--col-green); height:150px; border-radius:0 0 32px 32px;"></div>
+        
+        <!-- Toolbar -->
+        <div style="position:absolute; bottom:30px; left:0; width:100%; display:flex; justify-content:center;">
+            <div style="width:320px; height:64px; background:var(--text-dark); border-radius:20px;"></div>
+            <div onclick="openModal()" style="position:absolute; bottom:22px; width:60px; height:60px; background:var(--col-orange); border-radius:50%; border:5px solid var(--bg-canvas); display:flex; justify-content:center; align-items:center; color:white; cursor:pointer;"><span class="material-icons-round" style="font-size:32px">add</span></div>
+        </div>
+
+        <!-- Modal -->
+        <div class="overlay" id="modal">
+            <div class="sheet">
+                <div style="text-align:center; font-size:12px; font-weight:700; color:#AAA; margin-bottom:20px;">ADD NEW</div>
+                <div class="card">
+                    <div class="thumb"><span class="material-icons-round">weekend</span></div>
+                    <div style="flex:1"><div style="font-weight:700; color:var(--text-dark)">Living Room</div><div style="font-size:12px; color:#999">Main House</div></div>
+                    <div style="font-size:12px; font-weight:700; color:var(--col-orange)">Change</div>
+                </div>
+                <div class="actions">
+                    <div class="act-card"><div class="icon-box" style="background:var(--col-yellow-soft); color:var(--col-yellow)"><span class="material-icons-round">domain_add</span></div><span style="font-size:11px; font-weight:700">Property</span></div>
+                    <div class="act-card"><div class="icon-box" style="background:var(--col-orange-soft); color:var(--col-orange)"><span class="material-icons-round">meeting_room</span></div><span style="font-size:11px; font-weight:700">Room</span></div>
+                    <div class="act-card" onclick="goCapture()"><div class="icon-box" style="background:var(--col-green); color:white"><span class="material-icons-round">camera_alt</span></div><span style="font-size:11px; font-weight:700">Scan</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Capture Choice -->
+        <div class="screen" id="capture">
+            <div style="padding:60px 24px;"><span class="material-icons-round" onclick="closeAll()" style="font-size:28px">close</span><h1 style="margin-top:20px; color:var(--text-dark)">How to add?</h1></div>
+            <div class="opt" style="background:var(--text-dark); color:white" onclick="goAI()"><span class="material-icons-round" style="font-size:40px">camera_alt</span><br>Take Photo</div>
+            <div class="opt" onclick="goAI()"><span class="material-icons-round" style="font-size:40px; color:#ccc">upload_file</span><br>Upload</div>
+        </div>
+
+        <!-- AI Loader -->
+        <div class="screen loading" id="loader">
+            <span class="material-icons-round" style="font-size:60px; margin-bottom:20px">auto_awesome</span>
+            <h3>Analyzing...</h3>
+            <div class="loader-bar"><div class="fill"></div></div>
+        </div>
+
+        <!-- Review -->
+        <div class="screen" id="review">
+            <div class="hero"></div>
+            <div class="form">
+                <div style="background:var(--col-orange-soft); padding:10px; border-radius:10px; color:var(--col-orange); font-weight:700; font-size:12px; display:inline-block; margin-bottom:20px;">✨ AI Match Found</div>
+                <div class="input"><span>KitchenAid Mixer</span><span class="material-icons-round" style="color:var(--col-orange)">auto_awesome</span></div>
+                <div class="input" style="border:2px solid var(--col-green)"><span style="color:var(--col-green); font-weight:700">R 8,999</span><span class="material-icons-round">refresh</span></div>
+                <div style="background:var(--col-orange); color:white; padding:18px; border-radius:16px; text-align:center; font-weight:700; margin-top:20px;">Save Item</div>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openModal() { document.getElementById('modal').classList.add('open'); }
+        function closeAll() { document.querySelectorAll('.overlay, .screen').forEach(e=>e.classList.remove('open','active')); }
+        function goCapture() { document.getElementById('capture').classList.add('active'); }
+        function goAI() {
+            document.getElementById('loader').classList.add('active');
+            setTimeout(() => {
+                document.getElementById('loader').classList.remove('active');
+                document.getElementById('review').classList.add('active');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>

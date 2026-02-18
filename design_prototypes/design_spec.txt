@@ -1,0 +1,49 @@
+# wotigot. Design System Specification
+
+## 1. Brand Identity
+- **Name**: wotigot. (Lowercase)
+- **Font**: Poppins (Primary), System Sans (Fallback)
+- **Logo Logic**: `i` is Green (Value), `.` is Orange (Action).
+
+## 2. Color System (Tutti Frutti)
+Use these exact hex codes.
+
+| Token | Hex | Semantic Usage |
+| :--- | :--- | :--- |
+| **bg-canvas** | `#FFFDF9` | Main App Background (Warm White) |
+| **text-dark** | `#2D3436` | Headings, Primary Text, Nav Bars |
+| **text-grey** | `#95A5A6` | Subtitles, Metadata, Icons |
+| **green** | `#00B894` | **Portfolio Level**, Money, Value, Success |
+| **green-soft** | `#E0F9F4` | Backgrounds for Green elements |
+| **yellow** | `#F7B731` | **Property Level**, Houses |
+| **yellow-soft** | `#FFF5D8` | Backgrounds for Yellow elements |
+| **orange** | `#FA8231` | **Room/Item Level**, Actions, FAB, Alerts |
+| **orange-soft** | `#FFF0E6` | Backgrounds for Orange elements |
+| **danger** | `#FF7675` | Delete, Error states |
+
+## 3. Component Styling Rules
+
+### A. The "Rich Card" (List Item)
+Used for: Property List, Room List, Context Selector.
+- **Container**: White, `borderRadius: 24`, `padding: 12`.
+- **Shadow**: Soft, diffuse. `shadowColor: #000`, `opacity: 0.05`, `radius: 10`.
+- **Thumbnail**: 60x60px, `borderRadius: 18`, Left aligned.
+- **Badges**:
+    - Count Badge (e.g., "8 Rooms"): Dark pill inside thumbnail bottom.
+    - Value Badge (e.g., "R 4.5m"): Colored pill on right side.
+
+### B. The Smart FAB & Toolbar
+- **Toolbar**: Dark Pill (`#2D3436`), `height: 64`, `borderRadius: 100`.
+- **Icons**: 2 Left (Home, List), 2 Right (Reports, Settings).
+- **FAB**: Orange Circle (`#FA8231`), `size: 56`, Center absolute.
+- **Cutout**: FAB has a 4px border matching `bg-canvas` to create separation.
+
+### C. Inputs & Forms
+- **Input**: Floating White Card (`borderRadius: 16`), No border until focused.
+- **Icons**: Left aligned inside input.
+- **Validation**: Red border for error, Green border for success.
+
+## 4. Navigation Hierarchy
+1.  **Green Header** -> Dashboard (Portfolio View)
+2.  **Yellow Header** -> Property Detail (Room List)
+3.  **Orange Header** -> Room Detail (Item List)

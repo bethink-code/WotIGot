@@ -1,0 +1,73 @@
+modules = ["nodejs-20", "postgresql-16", "python-3.11"]
+[agent]
+expertMode = true
+integrations = ["github:1.0.0"]
+
+[nix]
+channel = "stable-25_05"
+
+[userenv]
+
+[userenv.shared]
+BASE_PATH = "/api"
+JWT_SECRET = "d6ddefb67a2e69226823ee556867ba77b40f88de0ffafedaafbd24ffd754b168"
+APP_URL = "https://b5a19ad6-74ec-42fc-b8e0-451b7018866b-00-2amfe1chqr0de.worf.replit.dev"
+
+[userenv.development]
+PORT = "3000"
+NODE_ENV = "development"
+EXPO_PUBLIC_API_URL = "/api"
+
+[userenv.production]
+PORT = "5000"
+NODE_ENV = "production"
+EXPO_PUBLIC_API_URL = "/api"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "./start.sh"
+waitForPort = 5000
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 3001
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 3002
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["bash", "start-prod.sh"]
+build = ["bash", "build.sh"]
