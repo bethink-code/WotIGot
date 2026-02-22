@@ -236,6 +236,11 @@ export const useUpdateRoom = () => {
       queryClient.invalidateQueries({
         queryKey: [`/rooms/${payload.id}`],
       });
+      queryClient.invalidateQueries({ queryKey: ['/houses'] });
+      queryClient.invalidateQueries({ predicate: (query) => {
+        const key = query.queryKey[0] as string;
+        return key.includes('/houses/') && key.includes('/rooms');
+      }});
     },
   });
 };
@@ -246,13 +251,13 @@ export const useDeleteRoom = () => {
     mutationFn: async (id: number) => {
       await api.delete(`/rooms/${id}`);
     },
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({
-        queryKey: ['/rooms'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`/rooms/${id}`],
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/rooms'] });
+      queryClient.invalidateQueries({ queryKey: ['/houses'] });
+      queryClient.invalidateQueries({ predicate: (query) => {
+        const key = query.queryKey[0] as string;
+        return key.includes('/houses/') && (key.includes('/rooms') || key.includes('/totals'));
+      }});
     },
   });
 };
@@ -263,13 +268,13 @@ export const useDeleteItem = () => {
     mutationFn: async (id: number) => {
       await api.delete(`/items/${id}`);
     },
-    onSuccess: (_, id) => {
-      queryClient.invalidateQueries({
-        queryKey: ['/items'],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [`/items/${id}`],
-      });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/items'] });
+      queryClient.invalidateQueries({ queryKey: ['/houses'] });
+      queryClient.invalidateQueries({ predicate: (query) => {
+        const key = query.queryKey[0] as string;
+        return key.includes('/items') || key.includes('/rooms') || key.includes('/totals');
+      }});
     },
   });
 };
@@ -406,6 +411,10 @@ export const useCreateRoom = () => {
       queryClient.invalidateQueries({
         queryKey: [`/houses/${payload.house_id}/rooms`],
       });
+      queryClient.invalidateQueries({
+        queryKey: [`/houses/${payload.house_id}`],
+      });
+      queryClient.invalidateQueries({ queryKey: ['/houses'] });
     },
   });
 };
@@ -430,13 +439,26 @@ export const useCreateItem = () => {
     mutationFn: async (payload: CreateItemData) => {
       return api.post<Item>('/items', payload).then((res) => res.data);
     },
-    onSuccess: (_, payload) => {
+    onSuccess: (item, payload) => {
       queryClient.invalidateQueries({
         queryKey: [`/rooms/${payload.room_id}/items`],
       });
       queryClient.invalidateQueries({
         queryKey: [`/rooms/${payload.room_id}`],
       });
+      queryClient.invalidateQueries({
+        queryKey: [`/rooms/${payload.room_id}/totals`],
+      });
+      queryClient.invalidateQueries({ queryKey: ['/houses'] });
+      queryClient.invalidateQueries({ queryKey: ['/items'] });
+      if (item.house_id) {
+        queryClient.invalidateQueries({
+          queryKey: [`/houses/${item.house_id}/rooms`],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [`/houses/${item.house_id}/totals`],
+        });
+      }
     },
   });
 };
@@ -468,8 +490,21 @@ export const useUpdateItem = () => {
         queryKey: [`/rooms/${item.room_id}`],
       });
       queryClient.invalidateQueries({
+        queryKey: [`/rooms/${item.room_id}/totals`],
+      });
+      queryClient.invalidateQueries({
         queryKey: [`/items/${item.id}`],
       });
+      queryClient.invalidateQueries({ queryKey: ['/houses'] });
+      queryClient.invalidateQueries({ queryKey: ['/items'] });
+      if (item.house_id) {
+        queryClient.invalidateQueries({
+          queryKey: [`/houses/${item.house_id}/rooms`],
+        });
+        queryClient.invalidateQueries({
+          queryKey: [`/houses/${item.house_id}/totals`],
+        });
+      }
     },
   });
 };
