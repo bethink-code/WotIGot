@@ -277,15 +277,16 @@ export const useDeleteItem = () => {
 export const useRecognition = () => {
   return useMutation({
     mutationFn: async (image: ImagePickerAsset) => {
+      const compressedUri = await compressImage(image.uri, MAX_IMAGE_DIMENSION);
       const form = new FormData();
       if (Platform.OS === 'web') {
-        const blob = await imageUriToBlobAsync(image.uri);
+        const blob = await imageUriToBlobAsync(compressedUri);
         form.append('file', blob);
       } else {
         form.append('file', {
-          uri: image.uri,
-          name: image.fileName,
-          type: image.mimeType,
+          uri: compressedUri,
+          name: image.fileName || 'photo.jpg',
+          type: 'image/jpeg',
         } as unknown as Blob);
       }
       return api
@@ -324,15 +325,16 @@ export interface ReRecognizeData {
 export const useReRecognize = () => {
   return useMutation({
     mutationFn: async (data: ReRecognizeData): Promise<ReEstimateResult> => {
+      const compressedUri = await compressImage(data.image.uri, MAX_IMAGE_DIMENSION);
       const form = new FormData();
       if (Platform.OS === 'web') {
-        const blob = await imageUriToBlobAsync(data.image.uri);
+        const blob = await imageUriToBlobAsync(compressedUri);
         form.append('file', blob);
       } else {
         form.append('file', {
-          uri: data.image.uri,
-          name: data.image.fileName,
-          type: data.image.mimeType,
+          uri: compressedUri,
+          name: data.image.fileName || 'photo.jpg',
+          type: 'image/jpeg',
         } as unknown as Blob);
       }
       if (data.brand) form.append('brand', data.brand);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Image, StyleSheet, Pressable, Text } from 'react-native';
 import * as ExpoImagePicker from 'expo-image-picker';
 import { Colors, Radii, Typography, Spacing } from '../../constants/DesignTokens';
@@ -8,6 +8,7 @@ interface ImagePickerProps {
   value?: ExpoImagePicker.ImagePickerAsset | null;
   onChange: (asset: ExpoImagePicker.ImagePickerAsset | null) => void;
   placeholder?: string;
+  existingImageUrl?: string;
   aspectRatio?: [number, number];
 }
 
@@ -15,10 +16,33 @@ export function ImagePicker({
   value,
   onChange,
   placeholder = 'Add photo',
+  existingImageUrl,
   aspectRatio = [4, 3],
 }: ImagePickerProps) {
+  const [showOptions, setShowOptions] = useState(false);
+
   const pickImage = async () => {
+    setShowOptions(false);
     const result = await ExpoImagePicker.launchImageLibraryAsync({
+      mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: aspectRatio,
+      quality: 0.83,
+    });
+
+    if (!result.canceled) {
+      onChange(result.assets[0]);
+    }
+  };
+
+  const takePhoto = async () => {
+    setShowOptions(false);
+    const { status } = await ExpoImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      return;
+    }
+
+    const result = await ExpoImagePicker.launchCameraAsync({
       mediaTypes: ExpoImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: aspectRatio,
@@ -53,13 +77,40 @@ export function ImagePicker({
     );
   }
 
+  if (showOptions) {
+    return (
+      <View style={styles.optionsRow}>
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionButton,
+            pressed && styles.optionButtonPressed,
+          ]}
+          onPress={takePhoto}
+        >
+          <Icon name="camera-outline" size={22} color={Colors.orange} />
+          <Text style={styles.optionLabel}>Camera</Text>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            styles.optionButton,
+            pressed && styles.optionButtonPressed,
+          ]}
+          onPress={pickImage}
+        >
+          <Icon name="image-outline" size={22} color={Colors.orange} />
+          <Text style={styles.optionLabel}>Library</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <Pressable
       style={({ pressed }) => [
         styles.picker,
         pressed && styles.pickerPressed,
       ]}
-      onPress={pickImage}
+      onPress={() => setShowOptions(true)}
     >
       <View style={styles.iconContainer}>
         <Icon name="camera-outline" size={28} color={Colors.textMuted} />
@@ -125,5 +176,29 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.bodyRegular,
     color: Colors.textMuted,
     opacity: 0.7,
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  optionButton: {
+    flex: 1,
+    height: 90,
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.white,
+    gap: Spacing.xxs,
+  },
+  optionButtonPressed: {
+    backgroundColor: Colors.orangeSoft,
+    borderColor: Colors.orange,
+  },
+  optionLabel: {
+    fontSize: Typography.fontSize.caption,
+    fontFamily: Typography.fontFamily.bodyMedium,
+    color: Colors.textDark,
   },
 });
