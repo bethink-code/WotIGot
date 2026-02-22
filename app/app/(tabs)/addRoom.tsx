@@ -82,15 +82,15 @@ export default function AddRoomScreen() {
     try {
       const location = await getLocation();
 
-      let mediaUrl;
+      let mediaResult;
       if (image) {
-        mediaUrl = await uploadMedia(image);
+        mediaResult = await uploadMedia(image);
       }
 
       await createRoom({
         name: name.trim(),
         house_id: selectedHouseId,
-        image: mediaUrl,
+        image: mediaResult?.url,
         location_lat: location?.coords.latitude,
         location_long: location?.coords.longitude,
       });

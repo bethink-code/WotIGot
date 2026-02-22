@@ -170,12 +170,12 @@ export default function ItemScreen() {
         console.log('Could not get location:', e);
       }
 
-      const uploadedUrl = await uploadMedia(pickedImage);
-      
+      const mediaResult = await uploadMedia(pickedImage);
+
       if (item?.id) {
         await addItemImage({
           itemId: item.id,
-          url: uploadedUrl,
+          url: mediaResult.url,
           is_primary: false,
           location_lat: locationLat,
           location_long: locationLong,

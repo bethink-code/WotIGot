@@ -96,15 +96,15 @@ export default function AddPropertyScreen() {
     if (!isValid || isLoading) return;
 
     try {
-      let mediaUrl;
+      let mediaResult;
       if (image) {
-        mediaUrl = await uploadMedia(image);
+        mediaResult = await uploadMedia(image);
       }
 
       await createHouse({
         name: name.trim(),
         address: geocodeResult?.formattedAddress || address.trim(),
-        image: mediaUrl,
+        image: mediaResult?.url,
         location_lat: geocodeResult?.coordinates.lat,
         location_long: geocodeResult?.coordinates.lng,
       });

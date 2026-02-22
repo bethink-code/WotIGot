@@ -124,9 +124,10 @@ export default function EditPropertyScreen() {
     if (!isValid || isLoading) return;
 
     try {
-      let mediaUrl = existingImage;
+      let imageUrl = existingImage;
       if (image) {
-        mediaUrl = await uploadMedia(image);
+        const mediaResult = await uploadMedia(image);
+        imageUrl = mediaResult.url;
       }
 
       const locationLat = geocodeResult?.coordinates.lat ?? house?.location_lat;
@@ -136,7 +137,7 @@ export default function EditPropertyScreen() {
         id,
         name: name.trim(),
         address: geocodeResult?.formattedAddress || address.trim(),
-        image: mediaUrl,
+        image: imageUrl,
         location_lat: locationLat,
         location_long: locationLong,
       });

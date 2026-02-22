@@ -89,15 +89,16 @@ export default function EditRoomScreen() {
     if (!isValid || isLoading) return;
 
     try {
-      let mediaUrl = existingImage;
+      let imageUrl = existingImage;
       if (image) {
-        mediaUrl = await uploadMedia(image);
+        const mediaResult = await uploadMedia(image);
+        imageUrl = mediaResult.url;
       }
 
       await updateRoom({
         id,
         name: name.trim(),
-        image: mediaUrl,
+        image: imageUrl,
       });
 
       room?.house_id 
