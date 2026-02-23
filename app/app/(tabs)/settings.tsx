@@ -133,7 +133,10 @@ export default function SettingsScreen() {
           />
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{me.name}</Text>
-            <Text style={styles.profileUsername}>@{me.user_name}</Text>
+            <Text style={styles.profileUsername}>{me.user_name}</Text>
+            <Text style={styles.profileAuthNote}>
+              {me.has_google ? 'Registered with Google' : 'Registered with password'}
+            </Text>
             {isAdmin && (
               <View style={styles.adminBadge}>
                 <Icon name="shield-check" size={12} color={Colors.green} />
@@ -144,7 +147,7 @@ export default function SettingsScreen() {
         </View>
 
         <SettingsSection title="ACCOUNT">
-          <SettingsItem 
+          <SettingsItem
             icon="account-edit-outline"
             label="Edit Profile"
             subtitle="Update your name and details"
@@ -152,11 +155,32 @@ export default function SettingsScreen() {
             iconColor={Colors.green}
             iconBgColor={Colors.greenSoft}
           />
-          <SettingsItem 
-            icon="lock-outline"
-            label="Change Password"
-            subtitle="Update your password"
-            onPress={() => router.push('/changePassword')}
+          {me.has_password && (
+            <SettingsItem
+              icon="lock-outline"
+              label="Change Password"
+              subtitle="Update your password"
+              onPress={() => router.push('/changePassword')}
+              iconColor={Colors.yellow}
+              iconBgColor={Colors.yellowSoft}
+            />
+          )}
+        </SettingsSection>
+
+        <SettingsSection title="BILLING">
+          <SettingsItem
+            icon="lightning-bolt"
+            label="Usage & Billing"
+            subtitle="Credits, plan, and usage history"
+            onPress={() => router.push('/billing')}
+            iconColor={Colors.orange}
+            iconBgColor={Colors.orangeSoft}
+          />
+          <SettingsItem
+            icon="cart-outline"
+            label="Buy Credits"
+            subtitle="Purchase additional AI credits"
+            onPress={() => router.push('/buyCredits')}
             iconColor={Colors.yellow}
             iconBgColor={Colors.yellowSoft}
           />
@@ -164,7 +188,7 @@ export default function SettingsScreen() {
 
         {isAdmin && (
           <SettingsSection title="ADMINISTRATION">
-            <SettingsItem 
+            <SettingsItem
               icon="account-group-outline"
               label="Manage Users"
               subtitle="Add, edit, or remove users"
@@ -245,6 +269,12 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.body2,
     fontFamily: Typography.fontFamily.bodyRegular,
     color: Colors.textGrey,
+    marginTop: Spacing.xxs,
+  },
+  profileAuthNote: {
+    fontSize: Typography.fontSize.caption,
+    fontFamily: Typography.fontFamily.bodyRegular,
+    color: Colors.textMuted,
     marginTop: Spacing.xxs,
   },
   adminBadge: {

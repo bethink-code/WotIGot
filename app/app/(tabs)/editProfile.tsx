@@ -114,15 +114,17 @@ export default function EditProfileScreen() {
             )}
           />
 
-          <View style={styles.readOnlyField}>
-            <TextInput
-              label="Username"
-              value={me.user_name}
-              editable={false}
-              placeholder="Username"
-              icon="at"
-            />
-          </View>
+          {me.has_password && (
+            <View style={styles.readOnlyField}>
+              <TextInput
+                label="Username"
+                value={me.user_name}
+                editable={false}
+                placeholder="Username"
+                icon="at"
+              />
+            </View>
+          )}
         </View>
 
         <View style={styles.actions}>

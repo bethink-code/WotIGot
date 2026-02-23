@@ -65,7 +65,16 @@ export class AuthController {
       throw new UnauthorizedException();
     }
 
-    return user;
+    const fullUser = await this.usersService.findById(user.id);
+    if (!fullUser) {
+      throw new UnauthorizedException();
+    }
+
+    return {
+      ...pick(fullUser, ['id', 'name', 'user_name', 'role']),
+      has_password: !!fullUser.password,
+      has_google: !!fullUser.google_id,
+    };
   }
 
   /**
