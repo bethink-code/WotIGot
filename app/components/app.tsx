@@ -4,12 +4,13 @@ import { OnboardingScreen } from '@/components/auth/OnboardingScreen';
 import { useQuery } from '@tanstack/react-query';
 import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NavigationProvider } from '@/contexts/NavigationContext';
 import { Colors } from '@/constants/DesignTokens';
 import { initializeAuth } from '@/lib/api';
+import { queryClient } from '@/lib/queryClient';
 
 const ONBOARDING_COMPLETE_KEY = '@wotigot:onboarding_complete';
 
@@ -34,6 +35,15 @@ const App = ({ isAssetsLoaded }: AppProps) => {
   const [isAuthInitialized, setIsAuthInitialized] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState<boolean | null>(null);
   const [authScreen, setAuthScreen] = useState<'none' | 'login' | 'register'>('none');
+
+  // Invalidate all queries on route change to ensure fresh data on every screen
+  const prevPathRef = useRef(pathname);
+  useEffect(() => {
+    if (prevPathRef.current !== pathname) {
+      prevPathRef.current = pathname;
+      queryClient.invalidateQueries();
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const init = async () => {
