@@ -9,8 +9,19 @@ const app = express();
 
 app.use(helmet());
 
+const allowedOrigins = (process.env.CORS_ORIGIN || "https://wotigot.vercel.app")
+  .split(",")
+  .map((o) => o.trim());
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || "https://wotigot.vercel.app",
+  origin: (origin, callback) => {
+    // Allow same-origin requests (no origin header) and allowed origins
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true,
 }));
 

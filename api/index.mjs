@@ -1249,8 +1249,15 @@ async function registerRoutes(app2) {
 // server/api.ts
 var app = express2();
 app.use(helmet());
+var allowedOrigins = (process.env.CORS_ORIGIN || "https://wotigot.vercel.app").split(",").map((o) => o.trim());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || "https://wotigot.vercel.app",
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true
 }));
 var authLimiter = rateLimit({
