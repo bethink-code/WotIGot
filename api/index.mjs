@@ -1242,7 +1242,13 @@ async function registerRoutes(app2) {
     res.header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.end(buffer);
   });
-  app2.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  app2.get("/api/health", (_req, res) => res.json({
+    status: "ok",
+    hasGeoKey: !!process.env.GOOGLE_MAPS_API_KEY,
+    hasGeminiKey: !!process.env.GEMINI_API_KEY,
+    hasGcsKey: !!process.env.GCS_SERVICE_ACCOUNT_JSON,
+    hasDbUrl: !!process.env.DATABASE_URL
+  }));
   return createServer(app2);
 }
 

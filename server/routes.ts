@@ -564,7 +564,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ── Health ──
 
-  app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+  app.get("/api/health", (_req, res) => res.json({
+    status: "ok",
+    hasGeoKey: !!process.env.GOOGLE_MAPS_API_KEY,
+    hasGeminiKey: !!process.env.GEMINI_API_KEY,
+    hasGcsKey: !!process.env.GCS_SERVICE_ACCOUNT_JSON,
+    hasDbUrl: !!process.env.DATABASE_URL,
+  }));
 
   return createServer(app);
 }
