@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
  * - If a GCS key (e.g. "5/room_123.jpg"), fetches a presigned read URL from the server.
  */
 export function useImageUrl(keyOrUrl: string | null | undefined): string | undefined {
-  const isKey = keyOrUrl && !keyOrUrl.startsWith("http");
+  const isKey = keyOrUrl && !keyOrUrl.startsWith("http") && !keyOrUrl.startsWith("blob:") && !keyOrUrl.startsWith("data:");
 
   const { data } = useQuery({
     queryKey: ["/media/url", keyOrUrl],
