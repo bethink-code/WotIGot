@@ -811,8 +811,12 @@ async function geocodeAddress(address) {
     const encoded = encodeURIComponent(address.trim());
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encoded}&key=${googleApiKey}&region=za`;
     const response = await fetch(url, { headers: { Accept: "application/json" } });
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error(`Geocode HTTP error: ${response.status}`);
+      return null;
+    }
     const data = await response.json();
+    console.log(`Geocode status: ${data.status}, results: ${data.results?.length || 0}, error: ${data.error_message || "none"}`);
     if (data.status !== "OK" || !data.results?.length) return null;
     const result = data.results[0];
     return {
