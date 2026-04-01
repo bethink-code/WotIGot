@@ -1171,7 +1171,15 @@ async function registerRoutes(app2) {
     const parsed = geocodeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
     const result = await geocodeAddress(parsed.data.address);
-    if (!result) return res.status(404).json({ message: "Address not found" });
+    if (!result) {
+      const debugUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(parsed.data.address)}&key=${process.env.GOOGLE_MAPS_API_KEY}&region=za`;
+      const debugRes = await fetch(debugUrl);
+      const debugData = await debugRes.json();
+      return res.status(404).json({
+        message: "Address not found",
+        debug: { status: debugData.status, error: debugData.error_message, resultCount: debugData.results?.length }
+      });
+    }
     res.json(result);
   });
   app2.post("/api/users", isAuthenticated, isAdmin, async (req, res) => {
