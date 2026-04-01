@@ -1,8 +1,24 @@
 import { Storage } from "@google-cloud/storage";
 import path from "path";
+import fs from "fs";
 
-const keyFilePath = path.resolve(process.cwd(), "gcs-service-account.json");
-const storage = new Storage({ keyFilename: keyFilePath });
+// Support both file-based (local dev) and env var (Vercel) service account auth
+function createStorage(): Storage {
+  // Option 1: JSON key in env var (Vercel)
+  if (process.env.GCS_SERVICE_ACCOUNT_JSON) {
+    const credentials = JSON.parse(process.env.GCS_SERVICE_ACCOUNT_JSON);
+    return new Storage({ credentials });
+  }
+  // Option 2: JSON key file (local dev)
+  const keyFilePath = path.resolve(process.cwd(), "gcs-service-account.json");
+  if (fs.existsSync(keyFilePath)) {
+    return new Storage({ keyFilename: keyFilePath });
+  }
+  // Option 3: Default credentials (GCP hosting)
+  return new Storage();
+}
+
+const storage = createStorage();
 const bucketName = process.env.GCS_BUCKET || "wotigot-media";
 const bucket = storage.bucket(bucketName);
 

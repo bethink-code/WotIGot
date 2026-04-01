@@ -760,8 +760,19 @@ async function askPrice(brand, model) {
 // server/media.ts
 import { Storage } from "@google-cloud/storage";
 import path from "path";
-var keyFilePath = path.resolve(process.cwd(), "gcs-service-account.json");
-var storage2 = new Storage({ keyFilename: keyFilePath });
+import fs from "fs";
+function createStorage() {
+  if (process.env.GCS_SERVICE_ACCOUNT_JSON) {
+    const credentials = JSON.parse(process.env.GCS_SERVICE_ACCOUNT_JSON);
+    return new Storage({ credentials });
+  }
+  const keyFilePath = path.resolve(process.cwd(), "gcs-service-account.json");
+  if (fs.existsSync(keyFilePath)) {
+    return new Storage({ keyFilename: keyFilePath });
+  }
+  return new Storage();
+}
+var storage2 = createStorage();
 var bucketName = process.env.GCS_BUCKET || "wotigot-media";
 var bucket = storage2.bucket(bucketName);
 async function getUploadUrls(fileName, userId) {
