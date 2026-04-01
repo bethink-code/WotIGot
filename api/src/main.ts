@@ -14,11 +14,9 @@ async function bootstrap() {
       origin: true,
       credentials: true,
     },
+    rawBody: true,
   });
   app.useBodyParser('json', { limit: '10mb' });
-  // app.useBodyParser('raw', { limit: '10mb' });
-  // app.useBodyParser('urlencoded', { limit: '10mb' });
-  // app.useBodyParser('text', { limit: '10mb' });
   const config = app.get(ConfigService);
   app.setGlobalPrefix(config.get('BASE_PATH') as string);
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));

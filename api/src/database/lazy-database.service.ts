@@ -7,6 +7,12 @@ import { Room } from '../items/entities/room.entity';
 import { Item } from '../items/entities/item.entity';
 import { ItemImage } from '../items/entities/item-image.entity';
 import { RefreshToken } from '../auth/refresh-token.entity';
+import { SubscriptionPlan } from '../billing/entities/subscription-plan.entity';
+import { UserSubscription } from '../billing/entities/user-subscription.entity';
+import { CreditBalance } from '../billing/entities/credit-balance.entity';
+import { UsageLog } from '../billing/entities/usage-log.entity';
+import { CreditPack } from '../billing/entities/credit-pack.entity';
+import { CreditTransaction } from '../billing/entities/credit-transaction.entity';
 import { seedProductionDatabase } from '../db/seed-production';
 
 export enum DatabaseState {
@@ -144,7 +150,7 @@ To query the Neon database, use: npm run db:query -- "YOUR SQL HERE"`;
           this.dataSource = new DataSource({
             type: 'postgres',
             url: databaseUrl,
-            entities: [User, House, Room, Item, ItemImage, RefreshToken],
+            entities: [User, House, Room, Item, ItemImage, RefreshToken, SubscriptionPlan, UserSubscription, CreditBalance, UsageLog, CreditPack, CreditTransaction],
             synchronize: false,
             ssl: true,
             extra: {

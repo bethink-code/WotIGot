@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Canvas & backgrounds */
+  --canvas: #FFFDF9;
+  --card: #FFFFFF;
+  --grey-bg: #F5F6FA;
+
+  /* Hierarchy colors */
+  --green: #00B894;
+  --green-soft: #E0F9F4;
+  --green-dark: #009975;
+  --yellow: #F7B731;
+  --yellow-soft: #FFF5D8;
+  --yellow-dark: #D4981A;
+  --orange: #FA8231;
+  --orange-soft: #FFF0E6;
+  --orange-dark: #D4691A;
+
+  /* Status */
+  --danger: #FF7675;
+  --danger-soft: #FEF2F2;
+
+  /* Text */
+  --text-dark: #2D3436;
+  --text-grey: #636E72;
+  --text-muted: #95A5A6;
+
+  /* Borders */
+  --border-light: rgba(0, 0, 0, 0.05);
+  --border-medium: rgba(0, 0, 0, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "DM Sans", sans-serif;
+  background-color: var(--canvas);
+  color: var(--text-dark);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Poppins", sans-serif;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(300px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideOutRight {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(300px); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes shimmer {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+
+.animate-fadeIn { animation: fadeIn 300ms cubic-bezier(0.05, 0.7, 0.1, 1) forwards; }
+.animate-slideUp { animation: slideUp 300ms cubic-bezier(0.2, 0, 0, 1) forwards; }
+.animate-slideInRight { animation: slideInRight 300ms cubic-bezier(0.05, 0.7, 0.1, 1) forwards; }
+.animate-scaleIn { animation: scaleIn 300ms cubic-bezier(0.05, 0.7, 0.1, 1) forwards; }
+.animate-pulse { animation: pulse 1.6s ease-in-out infinite; }
+.animate-float { animation: float 5s ease-in-out infinite; }
+.animate-spin { animation: spin 1.5s linear infinite; }
+.animate-shimmer { animation: shimmer 2s ease-in-out infinite; }
+
+/* Stagger delay utilities */
+.stagger-1 { animation-delay: 50ms; }
+.stagger-2 { animation-delay: 100ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 200ms; }
+.stagger-5 { animation-delay: 250ms; }
+
+/* Button press effect */
+.press-scale {
+  transition: transform 150ms cubic-bezier(0.2, 0, 0, 1);
+}
+.press-scale:active {
+  transform: scale(0.95);
+}
+.press-scale-subtle:active {
+  transform: scale(0.98);
+}
+
+/* Page transition */
+.page-enter {
+  animation: slideUp 300ms cubic-bezier(0.05, 0.7, 0.1, 1) forwards;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 2px;
+}
+
+/* Max width container for mobile-first design */
+#root {
+  max-width: 520px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--canvas);
+  position: relative;
+  overflow-x: hidden;
+}

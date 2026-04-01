@@ -165,6 +165,34 @@ export default function TabLayout() {
             title: 'Reports',
           }}
         />
+        <Tabs.Screen
+          name="billing"
+          options={{
+            title: 'Billing',
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="selectPlan"
+          options={{
+            title: 'Select Plan',
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="buyCredits"
+          options={{
+            title: 'Buy Credits',
+            href: null,
+          }}
+        />
+        <Tabs.Screen
+          name="usageHistory"
+          options={{
+            title: 'Usage History',
+            href: null,
+          }}
+        />
       </Tabs>
 
       {showToolbar && (

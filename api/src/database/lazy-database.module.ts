@@ -9,6 +9,12 @@ import { Room } from '../items/entities/room.entity';
 import { Item } from '../items/entities/item.entity';
 import { ItemImage } from '../items/entities/item-image.entity';
 import { RefreshToken } from '../auth/refresh-token.entity';
+import { SubscriptionPlan } from '../billing/entities/subscription-plan.entity';
+import { UserSubscription } from '../billing/entities/user-subscription.entity';
+import { CreditBalance } from '../billing/entities/credit-balance.entity';
+import { UsageLog } from '../billing/entities/usage-log.entity';
+import { CreditPack } from '../billing/entities/credit-pack.entity';
+import { CreditTransaction } from '../billing/entities/credit-transaction.entity';
 import {
   REFRESH_TOKEN_REPOSITORY,
   USER_REPOSITORY,
@@ -16,6 +22,12 @@ import {
   ROOM_REPOSITORY,
   ITEM_REPOSITORY,
   ITEM_IMAGE_REPOSITORY,
+  SUBSCRIPTION_PLAN_REPOSITORY,
+  USER_SUBSCRIPTION_REPOSITORY,
+  CREDIT_BALANCE_REPOSITORY,
+  USAGE_LOG_REPOSITORY,
+  CREDIT_PACK_REPOSITORY,
+  CREDIT_TRANSACTION_REPOSITORY,
 } from './repository-tokens';
 
 @Global()
@@ -29,6 +41,13 @@ import {
     createLazyRepositoryProvider(Room, ROOM_REPOSITORY),
     createLazyRepositoryProvider(Item, ITEM_REPOSITORY),
     createLazyRepositoryProvider(ItemImage, ITEM_IMAGE_REPOSITORY),
+    // Billing
+    createLazyRepositoryProvider(SubscriptionPlan, SUBSCRIPTION_PLAN_REPOSITORY),
+    createLazyRepositoryProvider(UserSubscription, USER_SUBSCRIPTION_REPOSITORY),
+    createLazyRepositoryProvider(CreditBalance, CREDIT_BALANCE_REPOSITORY),
+    createLazyRepositoryProvider(UsageLog, USAGE_LOG_REPOSITORY),
+    createLazyRepositoryProvider(CreditPack, CREDIT_PACK_REPOSITORY),
+    createLazyRepositoryProvider(CreditTransaction, CREDIT_TRANSACTION_REPOSITORY),
   ],
   controllers: [HealthController],
   exports: [
@@ -40,6 +59,13 @@ import {
     ROOM_REPOSITORY,
     ITEM_REPOSITORY,
     ITEM_IMAGE_REPOSITORY,
+    // Billing
+    SUBSCRIPTION_PLAN_REPOSITORY,
+    USER_SUBSCRIPTION_REPOSITORY,
+    CREDIT_BALANCE_REPOSITORY,
+    USAGE_LOG_REPOSITORY,
+    CREDIT_PACK_REPOSITORY,
+    CREDIT_TRANSACTION_REPOSITORY,
   ],
 })
 export class LazyDatabaseModule implements OnApplicationBootstrap {

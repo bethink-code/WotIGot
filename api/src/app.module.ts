@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { ItemsModule } from './items/items.module';
 import { MediaModule } from './media/media.module';
 import { GeocodeModule } from './geocode/geocode.module';
+import { BillingModule } from './billing/billing.module';
 import { IndexController } from './index.controller';
 
 @Module({
@@ -43,6 +44,11 @@ import { IndexController } from './index.controller';
         PGPASSWORD: Joi.string().optional(),
         PGDATABASE: Joi.string().optional(),
         GOOGLE_CLIENT_ID: Joi.string().required(),
+        STRIPE_SECRET_KEY: Joi.string().optional(),
+        STRIPE_WEBHOOK_SECRET: Joi.string().optional(),
+        BILLING_TRACKING_ENABLED: Joi.string().valid('true', 'false').default('true'),
+        BILLING_UI_ENABLED: Joi.string().valid('true', 'false').default('false'),
+        BILLING_ENFORCEMENT_ENABLED: Joi.string().valid('true', 'false').default('false'),
       }),
     }),
     LazyDatabaseModule,
@@ -51,6 +57,7 @@ import { IndexController } from './index.controller';
     ItemsModule,
     MediaModule,
     GeocodeModule,
+    BillingModule,
   ],
   controllers: [IndexController],
 })

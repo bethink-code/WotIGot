@@ -28,6 +28,8 @@ import { RecognizerService } from 'src/items/services/recognizer.service';
 import { AskPriceDto } from 'src/items/dto/ask-price.dto';
 import { UpdateItemDto } from 'src/items/dto/update-item.dto';
 import { DatabaseReadyGuard } from '../../database/database-ready.guard';
+import { CreditCost } from '../../billing/decorators/credit-cost.decorator';
+import { CreditDeductionInterceptor } from '../../billing/interceptors/credit-deduction.interceptor';
 
 @Controller('items')
 @UseGuards(DatabaseReadyGuard)
@@ -115,20 +117,24 @@ export class ItemsController {
 
   @Post('/recognition')
   @HttpCode(200)
-  @UseInterceptors(FileInterceptor('file'))
+  @CreditCost(2)
+  @UseInterceptors(CreditDeductionInterceptor, FileInterceptor('file'))
   async recognition(@UploadedFile() file: Express.Multer.File) {
     return this.recognizerService.recognizeItem(file);
   }
 
   @Post('/ask-price')
   @HttpCode(200)
+  @CreditCost(1)
+  @UseInterceptors(CreditDeductionInterceptor)
   async askPrice(@Body() data: AskPriceDto) {
     return this.recognizerService.askPrice(data);
   }
 
   @Post('/re-recognize')
   @HttpCode(200)
-  @UseInterceptors(FileInterceptor('file'))
+  @CreditCost(2)
+  @UseInterceptors(CreditDeductionInterceptor, FileInterceptor('file'))
   async reRecognize(
     @UploadedFile() file: Express.Multer.File,
     @Body() data: ReEstimateItemDto,
@@ -149,6 +155,8 @@ export class ItemsController {
 
   @Post(':id/re-estimate')
   @HttpCode(200)
+  @CreditCost(2)
+  @UseInterceptors(CreditDeductionInterceptor)
   async reEstimate(
     @Param('id', ParseIntPipe) id: number,
     @Body() data: ReEstimateItemDto,

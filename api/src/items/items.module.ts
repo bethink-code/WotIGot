@@ -8,8 +8,10 @@ import { RoomsController } from './controllers/rooms.controller';
 import { ItemsController } from './controllers/items.controller';
 import { ReportsController } from './controllers/reports.controller';
 import { RecognizerService } from 'src/items/services/recognizer.service';
+import { BillingModule } from '../billing/billing.module';
 
 @Module({
+  imports: [BillingModule],
   providers: [ItemsService, ItemImagesService, HousesService, RoomsService, RecognizerService],
   controllers: [HousesController, RoomsController, ItemsController, ReportsController],
 })
