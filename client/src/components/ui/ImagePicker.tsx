@@ -1,12 +1,15 @@
 import { useRef, type ChangeEvent } from "react";
 import { Camera, Image as ImageIcon, X } from "lucide-react";
+import { useImageUrl } from "@/hooks/useImageUrl";
 
 interface ImagePickerProps {
+  /** GCS key, full URL, or local object URL */
   value?: string | null;
   onChange: (file: File | null) => void;
   onRemove?: () => void;
   label?: string;
   sublabel?: string;
+  /** "card" shows two large cards (Take Photo / Upload Photo), "compact" shows a small dashed box */
   variant?: "card" | "compact";
 }
 
@@ -18,18 +21,21 @@ export default function ImagePicker({
   sublabel = "Optional",
   variant = "compact",
 }: ImagePickerProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+  const galleryRef = useRef<HTMLInputElement>(null);
+  const resolvedUrl = useImageUrl(value);
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     onChange(file);
-    if (inputRef.current) inputRef.current.value = "";
+    e.target.value = "";
   };
 
-  if (value) {
+  // Show preview with remove button
+  if (resolvedUrl) {
     return (
       <div className="relative inline-block">
-        <img src={value} alt="Selected" className="w-20 h-20 rounded-xl object-cover" />
+        <img src={resolvedUrl} alt="Selected" className="w-20 h-20 rounded-xl object-cover" />
         {onRemove && (
           <button
             onClick={onRemove}
@@ -42,37 +48,44 @@ export default function ImagePicker({
     );
   }
 
+  // Two-card layout for scan flow
   if (variant === "card") {
     return (
-      <div className="flex gap-4">
-        <PickerCard
-          icon={<Camera size={28} className="text-orange" />}
-          title="Take Photo"
-          subtitle="Use camera"
-          onClick={() => inputRef.current?.click()}
-        />
-        <PickerCard
-          icon={<ImageIcon size={28} className="text-orange" />}
-          title="Upload Photo"
-          subtitle="From library"
-          onClick={() => inputRef.current?.click()}
-        />
-        <input ref={inputRef} type="file" accept="image/*" onChange={handleChange} className="hidden" />
-      </div>
+      <>
+        <div className="flex gap-4 w-full">
+          <PickerCard
+            icon={<Camera size={28} className="text-orange" />}
+            title="Take Photo"
+            subtitle="Use camera"
+            onClick={() => cameraRef.current?.click()}
+          />
+          <PickerCard
+            icon={<ImageIcon size={28} className="text-orange" />}
+            title="Upload Photo"
+            subtitle="From library"
+            onClick={() => galleryRef.current?.click()}
+          />
+        </div>
+        {/* Camera input — opens camera directly on mobile */}
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" onChange={handleChange} className="hidden" />
+        {/* Gallery input — opens file picker / photo library */}
+        <input ref={galleryRef} type="file" accept="image/*" onChange={handleChange} className="hidden" />
+      </>
     );
   }
 
+  // Compact dashed box for form fields
   return (
     <div>
       <button
-        onClick={() => inputRef.current?.click()}
+        onClick={() => galleryRef.current?.click()}
         className="flex flex-col items-center justify-center w-20 h-20 rounded-xl border border-dashed border-[var(--border-medium)] press-scale-subtle"
       >
         <Camera size={20} className="text-text-muted mb-1" />
         <span className="font-dm text-[10px] text-text-grey leading-tight text-center">{label}</span>
         <span className="font-dm text-[10px] text-text-muted">{sublabel}</span>
       </button>
-      <input ref={inputRef} type="file" accept="image/*" onChange={handleChange} className="hidden" />
+      <input ref={galleryRef} type="file" accept="image/*" onChange={handleChange} className="hidden" />
     </div>
   );
 }

@@ -1,13 +1,15 @@
 import { useParams, useLocation } from "wouter";
+import { useRef, useState, type ChangeEvent } from "react";
 import PageHeader from "@/components/ui/PageHeader";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { ConfirmModal } from "@/components/ui/Modal";
+import { useImageUrl } from "@/hooks/useImageUrl";
 import { useItem, useItemImages } from "@/lib/queries";
-import { useDeleteItem, useDeleteItemImage, useSetPrimaryImage } from "@/lib/mutations";
-import { formatRand } from "@/lib/utils";
-import { useState } from "react";
-import { Pencil, Trash2, Star, X } from "lucide-react";
+import { useDeleteItem, useDeleteItemImage, useSetPrimaryImage, useAddItemImage, useGetUploadUrls } from "@/lib/mutations";
+import { formatRand, compressImage, generateThumbnail } from "@/lib/utils";
+import { Pencil, Trash2, Star, X, Plus, Camera } from "lucide-react";
 import type { ItemImage } from "@shared/schema";
+import axios from "axios";
 
 export default function ItemDetail() {
   const { id } = useParams<{ id: string }>();
@@ -16,8 +18,6 @@ export default function ItemDetail() {
   const { data: item } = useItem(itemId);
   const { data: images } = useItemImages(itemId);
   const deleteItem = useDeleteItem();
-  const deleteImage = useDeleteItemImage();
-  const setPrimary = useSetPrimaryImage();
   const [showDelete, setShowDelete] = useState(false);
 
   const handleDelete = () => {
@@ -28,6 +28,7 @@ export default function ItemDetail() {
 
   const primaryImage = images?.find((img) => img.is_primary);
   const otherImages = images?.filter((img) => !img.is_primary) ?? [];
+  const allImages = images ?? [];
 
   return (
     <div className="min-h-screen pb-24">
@@ -56,13 +57,7 @@ export default function ItemDetail() {
 
       <div className="px-4 py-4 space-y-6 animate-slideUp">
         {/* Primary image */}
-        {primaryImage && (
-          <img
-            src={primaryImage.url}
-            alt={item.brand}
-            className="w-full h-56 object-cover rounded-xl shadow-card"
-          />
-        )}
+        {primaryImage && <PrimaryImageDisplay image={primaryImage} alt={item.brand} />}
 
         {/* Value card */}
         <div className="bg-white rounded-xl shadow-card p-4">
@@ -87,22 +82,8 @@ export default function ItemDetail() {
           <DetailRow label="Quantity" value={String(item.amount)} />
         </div>
 
-        {/* Additional images */}
-        {otherImages.length > 0 && (
-          <div>
-            <SectionLabel className="mb-3">PHOTOS</SectionLabel>
-            <div className="grid grid-cols-3 gap-2">
-              {otherImages.map((img) => (
-                <ImageTile
-                  key={img.id}
-                  image={img}
-                  onSetPrimary={() => setPrimary.mutate({ itemId, imageId: img.id })}
-                  onDelete={() => deleteImage.mutate({ itemId, imageId: img.id })}
-                />
-              ))}
-            </div>
-          </div>
-        )}
+        {/* Photo gallery */}
+        <ImageGallery itemId={itemId} images={allImages} />
       </div>
 
       <ConfirmModal
@@ -119,6 +100,96 @@ export default function ItemDetail() {
   );
 }
 
+// ── Primary Image ──
+
+function PrimaryImageDisplay({ image, alt }: { image: ItemImage; alt: string }) {
+  const url = useImageUrl(image.url);
+  if (!url) return null;
+  return <img src={url} alt={alt} className="w-full h-56 object-cover rounded-xl shadow-card" />;
+}
+
+// ── Image Gallery ──
+
+function ImageGallery({ itemId, images }: { itemId: number; images: ItemImage[] }) {
+  const deleteImage = useDeleteItemImage();
+  const setPrimary = useSetPrimaryImage();
+  const addImage = useAddItemImage();
+  const getUploadUrls = useGetUploadUrls();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleAddPhoto = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+
+    setUploading(true);
+    try {
+      const [compressed, thumbnail] = await Promise.all([
+        compressImage(file, 1600, 0.8),
+        generateThumbnail(file, 256, 0.7),
+      ]);
+
+      const fileName = `photo_${Date.now()}.jpg`;
+      const urls = await getUploadUrls.mutateAsync(fileName);
+
+      await Promise.all([
+        axios.put(urls.originalUrl, compressed, { headers: { "Content-Type": "image/jpeg" } }),
+        axios.put(urls.thumbnailUrl, thumbnail, { headers: { "Content-Type": "image/jpeg" } }),
+      ]);
+
+      addImage.mutate({
+        itemId,
+        url: urls.originalKey,
+        thumbnail_url: urls.thumbnailKey,
+        is_primary: images.length === 0,
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <SectionLabel>{`PHOTOS (${images.length})`}</SectionLabel>
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="flex items-center gap-1 text-green font-dm text-xs font-medium press-scale disabled:opacity-50"
+        >
+          {uploading ? "Uploading..." : <><Camera size={14} /> Add Photo</>}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {images.map((img) => (
+          <ImageTile
+            key={img.id}
+            image={img}
+            onSetPrimary={() => setPrimary.mutate({ itemId, imageId: img.id })}
+            onDelete={() => deleteImage.mutate({ itemId, imageId: img.id })}
+          />
+        ))}
+
+        {/* Add photo tile */}
+        <button
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="aspect-square rounded-lg border-2 border-dashed border-[var(--border-medium)] flex flex-col items-center justify-center gap-1 press-scale-subtle disabled:opacity-50"
+        >
+          <Plus size={20} className="text-text-muted" />
+          <span className="font-dm text-[10px] text-text-muted">Add</span>
+        </button>
+      </div>
+
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleAddPhoto} className="hidden" />
+    </div>
+  );
+}
+
+// ── Detail Row ──
+
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between items-baseline">
@@ -127,6 +198,8 @@ function DetailRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+
+// ── Image Tile ──
 
 function ImageTile({
   image,
@@ -137,17 +210,26 @@ function ImageTile({
   onSetPrimary: () => void;
   onDelete: () => void;
 }) {
+  const url = useImageUrl(image.thumbnail_url || image.url);
+
   return (
     <div className="relative group">
-      <img
-        src={image.thumbnail_url || image.url}
-        alt=""
-        className="w-full aspect-square object-cover rounded-lg"
-      />
+      {url ? (
+        <img src={url} alt="" className="w-full aspect-square object-cover rounded-lg" />
+      ) : (
+        <div className="w-full aspect-square rounded-lg bg-grey-bg animate-pulse" />
+      )}
+      {image.is_primary && (
+        <div className="absolute top-1 left-1 w-5 h-5 rounded-full bg-yellow flex items-center justify-center">
+          <Star size={10} color="white" fill="white" />
+        </div>
+      )}
       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded-lg flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
-        <button onClick={onSetPrimary} className="w-7 h-7 rounded-full bg-white flex items-center justify-center">
-          <Star size={14} className="text-yellow" />
-        </button>
+        {!image.is_primary && (
+          <button onClick={onSetPrimary} className="w-7 h-7 rounded-full bg-white flex items-center justify-center">
+            <Star size={14} className="text-yellow" />
+          </button>
+        )}
         <button onClick={onDelete} className="w-7 h-7 rounded-full bg-white flex items-center justify-center">
           <X size={14} className="text-danger" />
         </button>

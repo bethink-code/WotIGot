@@ -5,8 +5,9 @@ import PageHeader from "@/components/ui/PageHeader";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
+import { useImageUrl } from "@/hooks/useImageUrl";
 import { useItem } from "@/lib/queries";
-import { useCreateItem, useUpdateItem } from "@/lib/mutations";
+import { useCreateItem, useUpdateItem, useAddItemImage } from "@/lib/mutations";
 import { useRooms } from "@/lib/queries";
 
 export default function EditItem() {
@@ -16,10 +17,15 @@ export default function EditItem() {
   const params = new URLSearchParams(search);
   const isNew = id === "new";
 
+  // Image keys passed from ScanItem
+  const imageKey = params.get("imageKey");
+  const thumbnailKey = params.get("thumbnailKey");
+
   const { data: existingItem } = useItem(isNew ? undefined : Number(id));
   const { data: rooms } = useRooms();
   const createItem = useCreateItem();
   const updateItem = useUpdateItem();
+  const addItemImage = useAddItemImage();
 
   const [brand, setBrand] = useState(params.get("brand") || "");
   const [model, setModel] = useState(params.get("model") || "");
@@ -31,6 +37,9 @@ export default function EditItem() {
   const [serialNumber, setSerialNumber] = useState("");
   const [roomId, setRoomId] = useState(params.get("roomId") || "");
   const [submitting, setSubmitting] = useState(false);
+
+  // Preview the scanned image
+  const previewUrl = useImageUrl(imageKey);
 
   useEffect(() => {
     if (existingItem) {
@@ -46,7 +55,7 @@ export default function EditItem() {
     }
   }, [existingItem]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!brand || !model || !category) return;
     setSubmitting(true);
 
@@ -60,9 +69,21 @@ export default function EditItem() {
           amount: Number(amount) || 1,
           description: description || undefined,
           serial_number: serialNumber || undefined,
+          image: imageKey || undefined,
         },
         {
-          onSuccess: () => navigate("/"),
+          onSuccess: (newItem) => {
+            // Attach the scanned image as primary ItemImage
+            if (imageKey) {
+              addItemImage.mutate({
+                itemId: newItem.id,
+                url: imageKey,
+                thumbnail_url: thumbnailKey || undefined,
+                is_primary: true,
+              });
+            }
+            navigate("/");
+          },
           onSettled: () => setSubmitting(false),
         }
       );
@@ -97,6 +118,16 @@ export default function EditItem() {
       />
 
       <div className="flex-1 px-4 py-4 space-y-4 animate-slideUp">
+        {/* Scanned image preview */}
+        {previewUrl && (
+          <img
+            src={previewUrl}
+            alt="Scanned item"
+            className="w-full h-48 object-cover rounded-xl shadow-card"
+          />
+        )}
+
+        {/* AI price badge */}
         {priceType === "AI" && price && (
           <div className="bg-green-soft rounded-xl p-4 text-center">
             <p className="font-dm text-xs text-green-dark">AI Estimated Price</p>
@@ -104,6 +135,7 @@ export default function EditItem() {
           </div>
         )}
 
+        {/* Room selector (only for new items without preset room) */}
         {isNew && !params.get("roomId") && (
           <select
             value={roomId}
@@ -129,7 +161,7 @@ export default function EditItem() {
         <Input placeholder="Serial number (optional)" value={serialNumber} onChange={(e) => setSerialNumber(e.target.value)} />
       </div>
 
-      <div className="px-4 pb-6">
+      <div className="px-4 pb-24">
         <Button
           onClick={handleSubmit}
           disabled={!isValid}

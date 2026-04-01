@@ -6,12 +6,13 @@ var __export = (target, all) => {
 
 // server/api.ts
 import "dotenv/config";
-import express from "express";
+import express2 from "express";
 import helmet from "helmet";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 
 // server/routes.ts
+import express from "express";
 import { createServer } from "http";
 import multer from "multer";
 import pkg2 from "lodash";
@@ -577,7 +578,7 @@ var schema = {
   required: ["barcode", "brand", "model", "price", "category", "amount"]
 };
 var generativeModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "gemini-3-flash",
   generationConfig: {
     responseMimeType: "application/json",
     responseSchema: schema
@@ -586,39 +587,45 @@ var generativeModel = genAI.getGenerativeModel({
 async function recognizeItem(buffer, mimeType) {
   const result = await generativeModel.generateContent([
     {
-      text: `You are an advanced object recognition and inventory system for South Africa. I will upload an image, and you must determine whether it contains a barcode or an object.
+      text: `You are an advanced object recognition and inventory counting system for South Africa.
 
-        COUNTING INSTRUCTION: Count ALL items visible in the image, including partially hidden or stacked items. If you can see any portion of an item (top, edge, label, or any identifying feature), count it.
+STEP 1 \u2014 COUNT ITEMS (CRITICAL):
+Before identifying, you MUST count every individual item in the image:
+- Zoom into different regions of the image systematically (top-left, top-right, bottom-left, bottom-right, center).
+- For each region, identify and mentally number every visible item.
+- Count partially hidden items: if you can see any portion (top, edge, label, handle, cap), it counts as 1 item.
+- Count stacked items: if items are stacked, estimate the stack depth from visible edges or labels.
+- Count grouped items: items in packs, boxes, or bundles \u2014 count individual units, not containers.
+- After scanning all regions, sum your counts to get the total amount.
+- If you are uncertain about the count, err on the HIGHER side \u2014 it is better to overcount for insurance/inventory purposes.
 
-        1. Barcode Detection:
-        If the image contains a barcode, extract the barcode number exactly as it appears.
-        Search for product details only in South African databases.
-        Validate that the retrieved product matches the object in the image.
-        Format the response as JSON:
-        {
-          "barcode": "123456789012",
-          "brand": "Brand Name",
-          "model": "Product Model",
-          "price": 1999,
-          "category": "Product Category",
-          "amount": 1
-        }
+STEP 2 \u2014 IDENTIFY:
+Determine if the image contains a barcode or an object.
 
-        2. Object Recognition (No Barcode Found):
-        If the image does not contain a barcode, analyze the object.
-        Extract brand, model, category, and average price from South African sources.
-        If multiple identical objects are detected, report quantity and average price.
-        Format the response as JSON:
-        {
-          "barcode": null,
-          "brand": "Brand Name",
-          "model": "Product Model",
-          "price": 1999,
-          "category": "Product Category",
-          "amount": 1
-        }
+If barcode found:
+- Extract the barcode number exactly as it appears.
+- Look up product details in South African retail databases.
+- Validate that the product matches the visible object.
 
-        Please process the image accordingly and provide accurate results.`
+If no barcode:
+- Identify brand, model, and category from visual features (logos, text, shape, packaging).
+- Search for the product's average retail price in South Africa (ZAR).
+
+STEP 3 \u2014 PRICE:
+- Return the per-unit price in ZAR (not total for all items).
+- Use South African retail pricing sources.
+
+FORMAT \u2014 Return JSON only:
+{
+  "barcode": "123456789012" or null,
+  "brand": "Brand Name",
+  "model": "Product Model",
+  "price": 1999,
+  "category": "Product Category",
+  "amount": 3
+}
+
+The "amount" field is the total count from Step 1. The "price" is per-unit from Step 3.`
     },
     {
       inlineData: { data: buffer.toString("base64"), mimeType }
@@ -751,27 +758,38 @@ async function askPrice(brand, model) {
 }
 
 // server/media.ts
-import { PutObjectCommand, GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-var s3Client = new S3Client({ region: process.env.AWS_REGION });
-var bucket = process.env.AWS_S3_BUCKET || "";
-var region = process.env.AWS_REGION || "";
+import { Storage } from "@google-cloud/storage";
+import path from "path";
+var keyFilePath = path.resolve(process.cwd(), "gcs-service-account.json");
+var storage2 = new Storage({ keyFilename: keyFilePath });
+var bucketName = process.env.GCS_BUCKET || "wotigot-media";
+var bucket = storage2.bucket(bucketName);
 async function getUploadUrls(fileName, userId) {
   const originalKey = `${userId}/${fileName}`;
   const thumbnailKey = `${userId}/thumbs/${fileName}`;
-  const originalCommand = new PutObjectCommand({
-    Bucket: bucket,
-    Key: originalKey
+  const [originalUrl] = await bucket.file(originalKey).getSignedUrl({
+    version: "v4",
+    action: "write",
+    expires: Date.now() + 60 * 60 * 1e3,
+    // 1 hour
+    contentType: "image/jpeg"
   });
-  const thumbnailCommand = new PutObjectCommand({
-    Bucket: bucket,
-    Key: thumbnailKey
+  const [thumbnailUrl] = await bucket.file(thumbnailKey).getSignedUrl({
+    version: "v4",
+    action: "write",
+    expires: Date.now() + 60 * 60 * 1e3,
+    contentType: "image/jpeg"
   });
-  const [originalUrl, thumbnailUrl] = await Promise.all([
-    getSignedUrl(s3Client, originalCommand, { expiresIn: 3600 }),
-    getSignedUrl(s3Client, thumbnailCommand, { expiresIn: 3600 })
-  ]);
   return { originalUrl, thumbnailUrl, originalKey, thumbnailKey };
+}
+async function getPresignedReadUrl(key) {
+  const [url] = await bucket.file(key).getSignedUrl({
+    version: "v4",
+    action: "read",
+    expires: Date.now() + 60 * 60 * 1e3
+    // 1 hour
+  });
+  return url;
 }
 
 // server/geocode.ts
@@ -836,6 +854,21 @@ async function registerRoutes(app2) {
         return res.status(403).json({ message: "Your email has not been invited. Please request access." });
       }
       res.status(401).json({ message: "Invalid Google token" });
+    }
+  });
+  app2.post("/api/auth/google-redirect", express.urlencoded({ extended: false }), async (req, res) => {
+    const credential = req.body.credential;
+    if (!credential) return res.status(400).send("Missing credential");
+    try {
+      const user = await validateGoogleToken(credential);
+      const access_token = generateAccessToken(user);
+      const refresh_token = await generateRefreshToken(user);
+      res.redirect(`/?auth=${encodeURIComponent(JSON.stringify({ access_token, refresh_token }))}`);
+    } catch (err) {
+      if (err.message === "NOT_INVITED") {
+        return res.redirect("/?error=not_invited");
+      }
+      res.redirect("/?error=google_auth_failed");
     }
   });
   app2.post("/api/auth/refresh", async (req, res) => {
@@ -1112,6 +1145,13 @@ async function registerRoutes(app2) {
     const urls = await getUploadUrls(parsed.data.fileName, req.user.id);
     res.json(urls);
   });
+  app2.get("/api/media/url", isAuthenticated, async (req, res) => {
+    const key = req.query.key;
+    if (!key) return res.status(400).json({ message: "key is required" });
+    if (!key.startsWith(`${req.user.id}/`)) return res.status(403).json({ message: "Forbidden" });
+    const url = await getPresignedReadUrl(key);
+    res.json({ url });
+  });
   app2.post("/api/geocode", isAuthenticated, async (req, res) => {
     const parsed = geocodeSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
@@ -1196,7 +1236,7 @@ async function registerRoutes(app2) {
 }
 
 // server/api.ts
-var app = express();
+var app = express2();
 app.use(helmet());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || "https://wotigot.vercel.app",
@@ -1220,8 +1260,8 @@ var apiLimiter = rateLimit({
   message: { error: "Too many requests, please try again later" }
 });
 app.use("/api/", apiLimiter);
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: false }));
+app.use(express2.json({ limit: "1mb" }));
+app.use(express2.urlencoded({ extended: false }));
 var isReady = false;
 var initError = null;
 var readyPromise = (async () => {

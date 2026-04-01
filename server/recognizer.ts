@@ -29,7 +29,7 @@ const schema = {
 };
 
 const generativeModel: GenerativeModel = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+  model: "gemini-3-flash",
   generationConfig: {
     responseMimeType: "application/json",
     responseSchema: schema,
@@ -45,39 +45,45 @@ export async function recognizeItem(
 ): Promise<RecognitionResult> {
   const result = await generativeModel.generateContent([
     {
-      text: `You are an advanced object recognition and inventory system for South Africa. I will upload an image, and you must determine whether it contains a barcode or an object.
+      text: `You are an advanced object recognition and inventory counting system for South Africa.
 
-        COUNTING INSTRUCTION: Count ALL items visible in the image, including partially hidden or stacked items. If you can see any portion of an item (top, edge, label, or any identifying feature), count it.
+STEP 1 — COUNT ITEMS (CRITICAL):
+Before identifying, you MUST count every individual item in the image:
+- Zoom into different regions of the image systematically (top-left, top-right, bottom-left, bottom-right, center).
+- For each region, identify and mentally number every visible item.
+- Count partially hidden items: if you can see any portion (top, edge, label, handle, cap), it counts as 1 item.
+- Count stacked items: if items are stacked, estimate the stack depth from visible edges or labels.
+- Count grouped items: items in packs, boxes, or bundles — count individual units, not containers.
+- After scanning all regions, sum your counts to get the total amount.
+- If you are uncertain about the count, err on the HIGHER side — it is better to overcount for insurance/inventory purposes.
 
-        1. Barcode Detection:
-        If the image contains a barcode, extract the barcode number exactly as it appears.
-        Search for product details only in South African databases.
-        Validate that the retrieved product matches the object in the image.
-        Format the response as JSON:
-        {
-          "barcode": "123456789012",
-          "brand": "Brand Name",
-          "model": "Product Model",
-          "price": 1999,
-          "category": "Product Category",
-          "amount": 1
-        }
+STEP 2 — IDENTIFY:
+Determine if the image contains a barcode or an object.
 
-        2. Object Recognition (No Barcode Found):
-        If the image does not contain a barcode, analyze the object.
-        Extract brand, model, category, and average price from South African sources.
-        If multiple identical objects are detected, report quantity and average price.
-        Format the response as JSON:
-        {
-          "barcode": null,
-          "brand": "Brand Name",
-          "model": "Product Model",
-          "price": 1999,
-          "category": "Product Category",
-          "amount": 1
-        }
+If barcode found:
+- Extract the barcode number exactly as it appears.
+- Look up product details in South African retail databases.
+- Validate that the product matches the visible object.
 
-        Please process the image accordingly and provide accurate results.`,
+If no barcode:
+- Identify brand, model, and category from visual features (logos, text, shape, packaging).
+- Search for the product's average retail price in South Africa (ZAR).
+
+STEP 3 — PRICE:
+- Return the per-unit price in ZAR (not total for all items).
+- Use South African retail pricing sources.
+
+FORMAT — Return JSON only:
+{
+  "barcode": "123456789012" or null,
+  "brand": "Brand Name",
+  "model": "Product Model",
+  "price": 1999,
+  "category": "Product Category",
+  "amount": 3
+}
+
+The "amount" field is the total count from Step 1. The "price" is per-unit from Step 3.`,
     },
     {
       inlineData: { data: buffer.toString("base64"), mimeType },

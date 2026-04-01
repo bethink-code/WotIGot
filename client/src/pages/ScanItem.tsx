@@ -3,7 +3,9 @@ import { useLocation, useSearch } from "wouter";
 import { Lightbulb } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import ImagePicker from "@/components/ui/ImagePicker";
-import { useRecognizeItem } from "@/lib/mutations";
+import { useRecognizeItem, useGetUploadUrls } from "@/lib/mutations";
+import { compressImage, generateThumbnail } from "@/lib/utils";
+import axios from "axios";
 
 export default function ScanItem() {
   const [, navigate] = useLocation();
@@ -12,9 +14,31 @@ export default function ScanItem() {
   const roomId = params.get("roomId");
 
   const recognize = useRecognizeItem();
+  const getUploadUrls = useGetUploadUrls();
+  const [status, setStatus] = useState<"idle" | "uploading" | "analyzing">("idle");
 
   const handleFileSelected = async (file: File | null) => {
     if (!file) return;
+
+    // 1. Compress and upload to GCS in parallel with AI recognition
+    setStatus("uploading");
+
+    const [compressed, thumbnail] = await Promise.all([
+      compressImage(file, 1600, 0.8),
+      generateThumbnail(file, 256, 0.7),
+    ]);
+
+    const fileName = `item_${Date.now()}.jpg`;
+    const urls = await getUploadUrls.mutateAsync(fileName);
+
+    // Upload original + thumbnail to GCS
+    await Promise.all([
+      axios.put(urls.originalUrl, compressed, { headers: { "Content-Type": "image/jpeg" } }),
+      axios.put(urls.thumbnailUrl, thumbnail, { headers: { "Content-Type": "image/jpeg" } }),
+    ]);
+
+    // 2. Run AI recognition
+    setStatus("analyzing");
 
     recognize.mutate(file, {
       onSuccess: (result) => {
@@ -26,8 +50,13 @@ export default function ScanItem() {
           price: String(result.price || ""),
           amount: String(result.amount || 1),
           priceType: "AI",
+          imageKey: urls.originalKey,
+          thumbnailKey: urls.thumbnailKey,
         });
         navigate(`/edit-item/new?${queryParams.toString()}`);
+      },
+      onError: () => {
+        setStatus("idle");
       },
     });
   };
@@ -37,8 +66,8 @@ export default function ScanItem() {
       <PageHeader title="Scan Item" subtitle="Take or upload a photo" color="orange" showBack />
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 animate-slideUp">
-        {recognize.isPending ? (
-          <AnalyzingState />
+        {status !== "idle" ? (
+          <AnalyzingState status={status} />
         ) : (
           <>
             <ImagePicker variant="card" onChange={handleFileSelected} />
@@ -53,10 +82,9 @@ export default function ScanItem() {
   );
 }
 
-function AnalyzingState() {
+function AnalyzingState({ status }: { status: "uploading" | "analyzing" }) {
   return (
     <div className="flex flex-col items-center gap-6 animate-fadeIn">
-      {/* Scanner rings */}
       <div className="relative w-32 h-32">
         <div className="absolute inset-0 rounded-full border-2 border-green/30 animate-spin" style={{ animationDuration: "4s" }} />
         <div className="absolute inset-3 rounded-full border-2 border-green/50 animate-spin" style={{ animationDuration: "3s", animationDirection: "reverse" }} />
@@ -67,10 +95,13 @@ function AnalyzingState() {
           </div>
         </div>
       </div>
-
       <div className="text-center">
-        <p className="font-poppins font-semibold text-lg text-text-dark">Analyzing</p>
-        <p className="font-dm text-sm text-text-grey mt-1">Identifying your item...</p>
+        <p className="font-poppins font-semibold text-lg text-text-dark">
+          {status === "uploading" ? "Uploading" : "Analyzing"}
+        </p>
+        <p className="font-dm text-sm text-text-grey mt-1">
+          {status === "uploading" ? "Saving your photo..." : "Identifying your item..."}
+        </p>
       </div>
     </div>
   );
