@@ -1258,6 +1258,7 @@ async function registerRoutes(app2) {
 
 // server/api.ts
 var app = express2();
+app.set("trust proxy", 1);
 app.use(helmet());
 var allowedOrigins = (process.env.CORS_ORIGIN || "https://wotigot.vercel.app").split(",").map((o) => o.trim());
 app.use(cors({

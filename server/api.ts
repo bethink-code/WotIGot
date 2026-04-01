@@ -7,6 +7,9 @@ import { registerRoutes } from "./routes";
 
 const app = express();
 
+// Trust proxy — required for Vercel (X-Forwarded-For headers)
+app.set("trust proxy", 1);
+
 app.use(helmet());
 
 const allowedOrigins = (process.env.CORS_ORIGIN || "https://wotigot.vercel.app")
