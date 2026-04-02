@@ -6,6 +6,9 @@
       "maxDuration": 60
     }
   },
+  "redirects": [
+    { "source": "/:path*", "has": [{ "type": "host", "value": "www.wotigot.com" }], "destination": "https://wotigot.com/:path*", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.mjs" },
     { "source": "/(.*)", "destination": "/index.html" }
