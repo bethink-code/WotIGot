@@ -89,6 +89,8 @@ api.interceptors.response.use(
       } catch {
         isRefreshing = false;
         removeTokens();
+        // Session expired (likely logged in on another device) — force re-login
+        window.location.reload();
         return Promise.reject(error);
       }
     }
