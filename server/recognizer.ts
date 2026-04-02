@@ -102,7 +102,7 @@ const countModel: GenerativeModel = genAI.getGenerativeModel({
 export async function recognizeGroupedItems(
   buffer: Buffer,
   mimeType: string
-): Promise<{ groups: GroupedRecognitionResult[]; usage: AiUsageStats }> {
+): Promise<{ groups: GroupedRecognitionResult[]; usage: AiUsageStats; debug?: any }> {
   const imageData = { inlineData: { data: buffer.toString("base64"), mimeType } };
 
   let identifyResult, countResult;
@@ -179,7 +179,7 @@ RULES:
   };
 
   if (!Array.isArray(identifyData.groups) || identifyData.groups.length === 0) {
-    return { groups: [], usage };
+    return { groups: [], usage, debug: { identifyRaw: identifyData, countRaw: countData, fileSize: buffer.length, mimeType } };
   }
 
   // Count boxes per label
