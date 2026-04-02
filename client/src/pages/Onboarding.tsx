@@ -78,8 +78,8 @@ function SplashScreen({ onLetsGo, onLogin }: { onLetsGo: () => void; onLogin: ()
     <div className="min-h-screen flex flex-col items-center justify-between py-12 px-6 animate-fadeIn">
       <Logo size="lg" className="mt-8" />
 
-      <div className="w-72 rounded-3xl overflow-hidden shadow-card rotate-3 animate-float">
-        <img src="/wotIgot_splash.png" alt="Inventory made easy" className="w-full h-auto" />
+      <div className="w-64 h-64 rounded-3xl overflow-hidden shadow-card rotate-3 animate-float">
+        <img src="/wotIgot_splash.png" alt="Inventory made easy" className="w-full h-full object-cover" />
       </div>
 
       <div className="flex flex-col items-center gap-4 w-full">
