@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { Package, Camera, TrendingUp, ArrowRight } from "lucide-react";
+// Camera still used in slide icons
 import Logo from "@/components/ui/Logo";
 
 interface OnboardingProps {
@@ -77,10 +78,8 @@ function SplashScreen({ onLetsGo, onLogin }: { onLetsGo: () => void; onLogin: ()
     <div className="min-h-screen flex flex-col items-center justify-between py-12 px-6 animate-fadeIn">
       <Logo size="lg" className="mt-8" />
 
-      <div className="w-64 h-64 rounded-3xl overflow-hidden shadow-card rotate-3 animate-float">
-        <div className="w-full h-full bg-gradient-to-br from-orange-soft to-green-soft flex items-center justify-center">
-          <Camera size={64} className="text-orange/40" />
-        </div>
+      <div className="w-72 rounded-3xl overflow-hidden shadow-card rotate-3 animate-float">
+        <img src="/wotIgot_splash.png" alt="Inventory made easy" className="w-full h-auto" />
       </div>
 
       <div className="flex flex-col items-center gap-4 w-full">
