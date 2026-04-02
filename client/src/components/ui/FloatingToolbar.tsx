@@ -25,8 +25,8 @@ export default function FloatingToolbar({ onFabPress, fabOpen }: FloatingToolbar
   const [location, navigate] = useLocation();
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40" style={{ maxWidth: 520 }}>
-      <div className="bg-text-dark rounded-round px-4 py-2.5 flex items-center gap-1 shadow-toolbar mx-4">
+    <div className="fixed bottom-4 left-0 right-0 z-40 flex justify-center pointer-events-none">
+      <div className="bg-text-dark rounded-round px-4 py-2.5 flex items-center gap-1 shadow-toolbar mx-4 pointer-events-auto">
         {/* Left nav items */}
         {navItems.slice(0, 2).map((item) => (
           <NavIcon

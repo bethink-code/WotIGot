@@ -2,9 +2,11 @@ import { eq, sql, and } from "drizzle-orm";
 import { db } from "./db";
 import {
   users, houses, rooms, items, itemImages, refreshTokens, invitedUsers,
+  accessRequests, aiUsage,
   type User, type InsertUser, type House, type InsertHouse,
   type Room, type InsertRoom, type Item, type InsertItem,
   type ItemImage, type InsertItemImage, type InvitedUser,
+  type AccessRequest, type AiUsage,
 } from "../shared/schema";
 import { hash, compare } from "bcrypt";
 
@@ -282,6 +284,104 @@ export class DatabaseStorage {
 
   async removeInvite(id: number): Promise<void> {
     await db.delete(invitedUsers).where(eq(invitedUsers.id, id));
+  }
+
+  // ── Access Requests ──
+
+  async getAccessRequests(): Promise<AccessRequest[]> {
+    return db.select().from(accessRequests).orderBy(sql`${accessRequests.created_at} DESC`);
+  }
+
+  async getPendingAccessRequestCount(): Promise<number> {
+    const [result] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(accessRequests)
+      .where(eq(accessRequests.status, "pending"));
+    return Number(result?.count ?? 0);
+  }
+
+  async createAccessRequest(data: { name: string; email: string; cell?: string }): Promise<AccessRequest> {
+    const [request] = await db
+      .insert(accessRequests)
+      .values({ name: data.name, email: data.email.toLowerCase(), cell: data.cell || null })
+      .returning();
+    return request;
+  }
+
+  async updateAccessRequestStatus(id: number, status: "approved" | "declined"): Promise<AccessRequest | null> {
+    const [request] = await db
+      .update(accessRequests)
+      .set({ status })
+      .where(eq(accessRequests.id, id))
+      .returning();
+    return request ?? null;
+  }
+
+  // ── AI Usage ──
+
+  async logAiUsage(data: {
+    userId?: number;
+    userEmail?: string;
+    action: string;
+    model: string;
+    inputTokens?: number;
+    outputTokens?: number;
+    estimatedCostUsd?: number;
+  }): Promise<void> {
+    await db.insert(aiUsage).values({
+      user_id: data.userId ?? null,
+      user_email: data.userEmail ?? null,
+      action: data.action,
+      model: data.model,
+      input_tokens: data.inputTokens ?? 0,
+      output_tokens: data.outputTokens ?? 0,
+      estimated_cost_usd: data.estimatedCostUsd != null ? String(data.estimatedCostUsd) : null,
+    });
+  }
+
+  async getAiUsageSummary() {
+    const [totals] = await db
+      .select({
+        total_calls: sql<number>`count(*)`,
+        total_input: sql<number>`coalesce(sum(${aiUsage.input_tokens}), 0)`,
+        total_output: sql<number>`coalesce(sum(${aiUsage.output_tokens}), 0)`,
+        total_cost: sql<number>`coalesce(sum(${aiUsage.estimated_cost_usd}::numeric), 0)`,
+      })
+      .from(aiUsage);
+
+    const perUser = await db
+      .select({
+        user_email: aiUsage.user_email,
+        calls: sql<number>`count(*)`,
+        input_tokens: sql<number>`coalesce(sum(${aiUsage.input_tokens}), 0)`,
+        output_tokens: sql<number>`coalesce(sum(${aiUsage.output_tokens}), 0)`,
+        cost: sql<number>`coalesce(sum(${aiUsage.estimated_cost_usd}::numeric), 0)`,
+      })
+      .from(aiUsage)
+      .groupBy(aiUsage.user_email);
+
+    const recent = await db
+      .select()
+      .from(aiUsage)
+      .orderBy(sql`${aiUsage.created_at} DESC`)
+      .limit(20);
+
+    return {
+      totals: {
+        calls: Number(totals?.total_calls ?? 0),
+        input_tokens: Number(totals?.total_input ?? 0),
+        output_tokens: Number(totals?.total_output ?? 0),
+        cost_usd: Number(totals?.total_cost ?? 0),
+      },
+      perUser,
+      recent,
+    };
+  }
+
+  // ── Terms ──
+
+  async acceptTerms(userId: number): Promise<void> {
+    await db.update(users).set({ terms_accepted_at: new Date() }).where(eq(users.id, userId));
   }
 }
 

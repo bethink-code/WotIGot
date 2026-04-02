@@ -27,7 +27,7 @@ export default function EditProfile() {
 
       <div className="flex-1 px-4 py-6 space-y-6 animate-slideUp">
         <div className="flex justify-center">
-          <Avatar name={name || user.name} size="lg" />
+          <Avatar name={name || user.name} photoUrl={user.photo_url} size="lg" />
         </div>
         <Input placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
       </div>

@@ -1,13 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useLocation, useSearch } from "wouter";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, RefreshCw } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { useImageUrl } from "@/hooks/useImageUrl";
 import { useItem } from "@/lib/queries";
-import { useCreateItem, useUpdateItem, useAddItemImage } from "@/lib/mutations";
+import { useCreateItem, useUpdateItem, useAddItemImage, useReEstimate, useReRecognize } from "@/lib/mutations";
 import { useRooms } from "@/lib/queries";
 
 export default function EditItem() {
@@ -17,9 +17,11 @@ export default function EditItem() {
   const params = new URLSearchParams(search);
   const isNew = id === "new";
 
-  // Image keys passed from ScanItem
+  // Image keys and geolocation passed from ScanItem
   const imageKey = params.get("imageKey");
   const thumbnailKey = params.get("thumbnailKey");
+  const photoLat = params.get("lat") ? Number(params.get("lat")) : undefined;
+  const photoLng = params.get("lng") ? Number(params.get("lng")) : undefined;
 
   const { data: existingItem } = useItem(isNew ? undefined : Number(id));
   const { data: rooms } = useRooms();
@@ -37,23 +39,70 @@ export default function EditItem() {
   const [serialNumber, setSerialNumber] = useState("");
   const [roomId, setRoomId] = useState(params.get("roomId") || "");
   const [submitting, setSubmitting] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+
+  // Original AI values for delta-aware re-estimation
+  const [originalBrand] = useState(params.get("brand") || "");
+  const [originalModel] = useState(params.get("model") || "");
+  const [originalCategory] = useState(params.get("category") || "");
+  const [originalPrice] = useState(params.get("price") || "");
+
+  const reEstimate = useReEstimate();
+  const reRecognize = useReRecognize();
 
   // Preview the scanned image
-  const previewUrl = useImageUrl(imageKey);
+  const previewUrl = useImageUrl(imageKey || existingItem?.image);
+
+  // Query params from re-estimate take priority over existing item data
+  const hasReEstimateParams = !isNew && !!params.get("priceType");
 
   useEffect(() => {
     if (existingItem) {
-      setBrand(existingItem.brand);
-      setModel(existingItem.model);
-      setCategory(existingItem.category);
-      setPrice(existingItem.price ?? "");
-      setAmount(String(existingItem.amount));
-      setPriceType(existingItem.price_type);
+      if (!hasReEstimateParams) {
+        setBrand(existingItem.brand);
+        setModel(existingItem.model);
+        setCategory(existingItem.category);
+        setPrice(existingItem.price ?? "");
+        setAmount(String(existingItem.amount));
+        setPriceType(existingItem.price_type);
+      }
       setDescription(existingItem.description || "");
       setSerialNumber(existingItem.serial_number || "");
       setRoomId(String(existingItem.room_id));
     }
   }, [existingItem]);
+
+  const handleReEstimate = () => {
+    if (!brand || !model || !category) return;
+    setEstimating(true);
+
+    if (isNew) {
+      // For new items, we don't have a stored image — but we don't have the raw file anymore either
+      // Use the existing item re-estimate approach won't work. The re-recognize needs a file.
+      // Fall back to re-estimate if we have an existing item, otherwise skip.
+      setEstimating(false);
+      return;
+    }
+
+    reEstimate.mutate(
+      {
+        itemId: Number(id),
+        brand, model, category,
+      },
+      {
+        onSuccess: (result) => {
+          if (result.brand) setBrand(result.brand);
+          if (result.model) setModel(result.model);
+          if (result.category) setCategory(result.category);
+          if (result.price) setPrice(String(result.price));
+          if (result.amount) setAmount(String(result.amount));
+          setPriceType("AI");
+          setEstimating(false);
+        },
+        onError: () => setEstimating(false),
+      }
+    );
+  };
 
   const handleSubmit = async () => {
     if (!brand || !model || !category) return;
@@ -80,6 +129,8 @@ export default function EditItem() {
                 url: imageKey,
                 thumbnail_url: thumbnailKey || undefined,
                 is_primary: true,
+                location_lat: photoLat,
+                location_long: photoLng,
               });
             }
             navigate("/");
@@ -133,6 +184,19 @@ export default function EditItem() {
             <p className="font-dm text-xs text-green-dark">AI Estimated Price</p>
             <p className="font-poppins font-bold text-2xl text-green-dark">R{price}</p>
           </div>
+        )}
+
+        {/* Re-estimate button (existing items only) */}
+        {!isNew && (
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={handleReEstimate}
+            disabled={estimating || !brand || !model || !category}
+            icon={<RefreshCw size={14} className={estimating ? "animate-spin" : ""} />}
+          >
+            {estimating ? "Re-estimating..." : "Get New AI Estimate"}
+          </Button>
         )}
 
         {/* Room selector (only for new items without preset room) */}

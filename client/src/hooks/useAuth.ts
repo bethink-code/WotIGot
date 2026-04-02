@@ -7,8 +7,11 @@ interface User {
   name: string;
   user_name: string;
   role: "user" | "admin";
+  photo_url: string | null;
   has_password: boolean;
   has_google: boolean;
+  terms_accepted: boolean;
+  pending_request_count?: number;
 }
 
 export function useAuth() {

@@ -121,7 +121,7 @@ export async function validateGoogleToken(idToken: string): Promise<PublicUserPr
     throw new Error("Invalid Google token payload");
   }
 
-  const { sub: googleId, email, name } = payload;
+  const { sub: googleId, email, name, picture } = payload;
 
   // 0. Check if email is invited (skip for existing users)
   const existingUser = await db
@@ -145,6 +145,10 @@ export async function validateGoogleToken(idToken: string): Promise<PublicUserPr
     .limit(1);
 
   if (existingByGoogle) {
+    // Update photo on every login (Google photos can change)
+    if (picture && picture !== existingByGoogle.photo_url) {
+      await db.update(users).set({ photo_url: picture }).where(eq(users.id, existingByGoogle.id));
+    }
     return pick(existingByGoogle, ["id", "name", "user_name", "role"]);
   }
 
@@ -166,7 +170,7 @@ export async function validateGoogleToken(idToken: string): Promise<PublicUserPr
     if (existingByUsername) {
       await db
         .update(users)
-        .set({ google_id: googleId, email: existingByUsername.email || email })
+        .set({ google_id: googleId, email: existingByUsername.email || email, photo_url: picture || null })
         .where(eq(users.id, existingByUsername.id));
       return pick(existingByUsername, ["id", "name", "user_name", "role"]);
     }
@@ -175,7 +179,7 @@ export async function validateGoogleToken(idToken: string): Promise<PublicUserPr
   if (existingByEmail) {
     await db
       .update(users)
-      .set({ google_id: googleId })
+      .set({ google_id: googleId, photo_url: picture || null })
       .where(eq(users.id, existingByEmail.id));
     return pick(existingByEmail, ["id", "name", "user_name", "role"]);
   }
@@ -188,6 +192,7 @@ export async function validateGoogleToken(idToken: string): Promise<PublicUserPr
       user_name: email,
       email,
       google_id: googleId,
+      photo_url: picture || null,
     })
     .returning();
 

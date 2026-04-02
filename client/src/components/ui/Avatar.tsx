@@ -1,8 +1,13 @@
+import { useState } from "react";
+import { useLocation } from "wouter";
 import { getInitials } from "@/lib/utils";
 
 interface AvatarProps {
   name: string;
+  photoUrl?: string | null;
   size?: "sm" | "md" | "lg";
+  onClick?: () => void;
+  navigateTo?: string;
   className?: string;
 }
 
@@ -12,12 +17,44 @@ const sizeStyles = {
   lg: "w-14 h-14 text-lg",
 };
 
-export default function Avatar({ name, size = "md", className = "" }: AvatarProps) {
+export default function Avatar({
+  name,
+  photoUrl,
+  size = "md",
+  onClick,
+  navigateTo,
+  className = "",
+}: AvatarProps) {
+  const [, navigate] = useLocation();
+  const [imgError, setImgError] = useState(false);
+  const showImage = photoUrl && !imgError;
+
+  const handleClick = () => {
+    if (onClick) return onClick();
+    if (navigateTo) return navigate(navigateTo);
+  };
+
+  const isClickable = onClick || navigateTo;
+
   return (
     <div
-      className={`rounded-full bg-green-soft text-green font-poppins font-semibold flex items-center justify-center shrink-0 ${sizeStyles[size]} ${className}`}
+      onClick={handleClick}
+      role={isClickable ? "button" : undefined}
+      className={`rounded-full shrink-0 overflow-hidden flex items-center justify-center ${sizeStyles[size]} ${
+        isClickable ? "cursor-pointer press-scale" : ""
+      } ${showImage ? "" : "bg-green-soft text-green font-poppins font-semibold"} ${className}`}
     >
-      {getInitials(name)}
+      {showImage ? (
+        <img
+          src={photoUrl}
+          alt={name}
+          className="w-full h-full object-cover"
+          onError={() => setImgError(true)}
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        getInitials(name)
+      )}
     </div>
   );
 }

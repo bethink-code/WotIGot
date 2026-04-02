@@ -2,10 +2,12 @@ import { type ButtonHTMLAttributes, type ReactNode } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "accent" | "danger" | "google";
 type ButtonColor = "dark" | "green" | "yellow" | "orange";
+type ButtonSize = "sm" | "md";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
   color?: ButtonColor;
+  size?: ButtonSize;
   icon?: ReactNode;
   fullWidth?: boolean;
   loading?: boolean;
@@ -26,9 +28,15 @@ const colorOverrides: Record<ButtonColor, string> = {
   orange: "bg-orange text-white",
 };
 
+const sizeStyles: Record<ButtonSize, string> = {
+  md: "font-poppins font-semibold text-[15px] rounded-pill px-6 py-[14px] gap-2",
+  sm: "font-dm font-medium text-xs rounded-pill px-4 py-2 gap-1.5",
+};
+
 export default function Button({
   variant = "primary",
   color,
+  size = "md",
   icon,
   fullWidth = true,
   loading = false,
@@ -37,13 +45,13 @@ export default function Button({
   className = "",
   ...props
 }: ButtonProps) {
-  const base = "font-poppins font-semibold text-[15px] rounded-pill px-6 py-[14px] flex items-center justify-center gap-2 transition-transform duration-150 press-scale disabled:opacity-50 disabled:pointer-events-none";
+  const base = "flex items-center justify-center transition-transform duration-150 press-scale disabled:opacity-50 disabled:pointer-events-none";
   const style = color ? colorOverrides[color] : variantStyles[variant];
   const width = fullWidth ? "w-full" : "";
 
   return (
     <button
-      className={`${base} ${style} ${width} ${className}`}
+      className={`${base} ${sizeStyles[size]} ${style} ${width} ${className}`}
       disabled={disabled || loading}
       {...props}
     >

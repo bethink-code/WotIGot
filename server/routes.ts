@@ -14,8 +14,9 @@ import {
   loginSchema, googleAuthSchema, insertHouseSchema, insertRoomSchema,
   insertItemSchema, addItemImageSchema, askPriceSchema, reEstimateSchema,
   geocodeSchema, mediaUploadSchema, createUserSchema, updateUserSchema,
-  updateProfileSchema, changePasswordSchema, priceTypeNameMap,
+  updateProfileSchema, changePasswordSchema, requestAccessSchema, priceTypeNameMap,
 } from "../shared/schema";
+import { audit, queryAuditLogs, getActivitySummary } from "./auditLog";
 const { pick } = pkg;
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -48,6 +49,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     const access_token = generateAccessToken(user);
     const refresh_token = await generateRefreshToken(user);
+    audit(req, { action: "auth.login", resourceType: "user", resourceId: user.id });
     res.json({ access_token, refresh_token });
   });
 
@@ -59,9 +61,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = await validateGoogleToken(parsed.data.id_token);
       const access_token = generateAccessToken(user);
       const refresh_token = await generateRefreshToken(user);
+      audit(req, { action: "auth.google_login", resourceType: "user", resourceId: user.id });
       res.json({ access_token, refresh_token });
     } catch (err: any) {
       if (err.message === "NOT_INVITED") {
+        audit(req, { action: "auth.login_blocked", outcome: "denied", detail: "Email not invited" });
         return res.status(403).json({ message: "Your email has not been invited. Please request access." });
       }
       res.status(401).json({ message: "Invalid Google token" });
@@ -106,11 +110,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const user = await storage.getUserById(req.user!.id);
     if (!user) return res.status(401).json({ message: "User not found" });
 
-    res.json({
-      ...pick(user, ["id", "name", "user_name", "role"]),
+    const result: any = {
+      ...pick(user, ["id", "name", "user_name", "role", "photo_url"]),
       has_password: !!user.password,
       has_google: !!user.google_id,
-    });
+      terms_accepted: !!user.terms_accepted_at,
+    };
+
+    if (user.role === "admin") {
+      result.pending_request_count = await storage.getPendingAccessRequestCount();
+    }
+
+    res.json(result);
   });
 
   app.put("/api/auth/profile", isAuthenticated, async (req, res) => {
@@ -140,6 +151,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
 
     const house = await storage.createHouse(parsed.data, req.user!.id);
+    audit(req, { action: "house.create", resourceType: "house", resourceId: house.id });
     res.status(201).json(house);
   });
 
@@ -173,6 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!assertOwnership(house, req.user!.id, "House", res)) return;
 
     await storage.deleteHouse(house.id);
+    audit(req, { action: "house.delete", resourceType: "house", resourceId: house.id });
     res.status(204).end();
   });
 
@@ -239,6 +252,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!assertOwnership(house, req.user!.id, "House", res)) return;
 
     const room = await storage.createRoom(parsed.data, req.user!.id);
+    audit(req, { action: "room.create", resourceType: "room", resourceId: room.id });
     res.status(201).json(room);
   });
 
@@ -266,6 +280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!assertOwnership(room, req.user!.id, "Room", res)) return;
 
     await storage.deleteRoom(room.id);
+    audit(req, { action: "room.delete", resourceType: "room", resourceId: room.id });
     res.status(204).end();
   });
 
@@ -299,6 +314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       house_id: room.house_id,
       owner_id: req.user!.id,
     });
+    audit(req, { action: "item.create", resourceType: "item", resourceId: item.id });
     res.status(201).json(item);
   });
 
@@ -336,6 +352,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (!assertOwnership(item, req.user!.id, "Item", res)) return;
 
     await storage.deleteItem(item.id);
+    audit(req, { action: "item.delete", resourceType: "item", resourceId: item.id });
     res.status(204).end();
   });
 
@@ -375,13 +392,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const item = await storage.getItemById(Number(req.params.id));
     if (!assertOwnership(item, req.user!.id, "Item", res)) return;
 
-    if (!item.image) return res.status(404).json({ message: "No primary image found for this item" });
+    // Use item.image or fall back to primary ItemImage
+    let imageKey = item.image;
+    if (!imageKey) {
+      const images = await storage.getImagesByItem(item.id);
+      const primary = images.find((img) => img.is_primary) || images[0];
+      imageKey = primary?.url ?? null;
+    }
+
+    if (!imageKey) return res.status(404).json({ message: "No image found for this item" });
 
     const parsed = reEstimateSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
 
+    // Resolve GCS key to a presigned URL for the recognizer to fetch
+    const imageUrl = await media.getPresignedReadUrl(imageKey);
+
     const result = await recognizer.reEstimateFromUrl(
-      item.image,
+      imageUrl,
       { brand: parsed.data.brand, model: parsed.data.model, category: parsed.data.category },
       { brand: item.brand, model: item.description || undefined, category: item.category, price: item.price ? Number(item.price) : undefined }
     );
@@ -475,6 +503,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   });
 
+  // ── Access Requests (public) ──
+
+  app.post("/api/request-access", async (req, res) => {
+    const parsed = requestAccessSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    const request = await storage.createAccessRequest(parsed.data);
+    res.status(201).json({ message: "Access request submitted", id: request.id });
+  });
+
+  // ── Terms ──
+
+  app.post("/api/user/accept-terms", isAuthenticated, async (req, res) => {
+    await storage.acceptTerms(req.user!.id);
+    audit(req, { action: "terms.accept" });
+    res.json({ message: "Terms accepted" });
+  });
+
   // ── Users (admin) ──
 
   app.post("/api/users", isAuthenticated, isAdmin, async (req, res) => {
@@ -529,12 +575,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     if (already) return res.status(409).json({ message: "Email already invited" });
 
     const invited = await storage.inviteUser(trimmed, req.user!.id);
+    audit(req, { action: "invite.create", resourceType: "invite", resourceId: invited.id, detail: trimmed });
     res.status(201).json(invited);
   });
 
   app.delete("/api/admin/invites/:id", isAuthenticated, isAdmin, async (req, res) => {
     await storage.removeInvite(Number(req.params.id));
+    audit(req, { action: "invite.remove", resourceType: "invite", resourceId: req.params.id });
     res.status(204).end();
+  });
+
+  // ── Admin: Toggle Admin ──
+
+  app.patch("/api/admin/users/:id/admin", isAuthenticated, isAdmin, async (req, res) => {
+    const targetId = Number(req.params.id);
+    if (targetId === req.user!.id) {
+      return res.status(400).json({ message: "Cannot change your own admin status" });
+    }
+
+    const user = await storage.getUserById(targetId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const newRole = user.role === "admin" ? "user" : "admin";
+    const updated = await storage.updateUser(targetId, { name: user.name, user_name: user.user_name });
+    // Direct role update since updateUser doesn't handle role
+    const { db: database } = await import("./db");
+    const { users: usersTable } = await import("../shared/schema");
+    const { eq } = await import("drizzle-orm");
+    await database.update(usersTable).set({ role: newRole as any }).where(eq(usersTable.id, targetId));
+
+    audit(req, { action: "user.toggle_admin", resourceType: "user", resourceId: targetId, detail: `Set role to ${newRole}` });
+    res.json({ id: targetId, role: newRole });
+  });
+
+  // ── Admin: Access Requests ──
+
+  app.get("/api/admin/access-requests", isAuthenticated, isAdmin, async (_req, res) => {
+    const requests = await storage.getAccessRequests();
+    res.json(requests);
+  });
+
+  app.patch("/api/admin/access-requests/:id", isAuthenticated, isAdmin, async (req, res) => {
+    const { status } = req.body;
+    if (status !== "approved" && status !== "declined") {
+      return res.status(400).json({ message: "Status must be approved or declined" });
+    }
+
+    const request = await storage.updateAccessRequestStatus(Number(req.params.id), status);
+    if (!request) return res.status(404).json({ message: "Request not found" });
+
+    if (status === "approved") {
+      const already = await storage.isEmailInvited(request.email);
+      if (!already) {
+        await storage.inviteUser(request.email, req.user!.id);
+      }
+    }
+
+    audit(req, { action: `access_request.${status}`, resourceType: "access_request", resourceId: req.params.id });
+    res.json(request);
+  });
+
+  // ── Admin: Audit Logs ──
+
+  app.get("/api/admin/audit-logs", isAuthenticated, isAdmin, async (req, res) => {
+    const result = await queryAuditLogs({
+      action: req.query.action as string | undefined,
+      outcome: req.query.outcome as string | undefined,
+      limit: req.query.limit ? Number(req.query.limit) : 50,
+      offset: req.query.offset ? Number(req.query.offset) : 0,
+    });
+    res.json(result);
+  });
+
+  // ── Admin: Security Overview ──
+
+  app.get("/api/admin/security-overview", isAuthenticated, isAdmin, async (_req, res) => {
+    const [allUsers, invites, pendingRequests, activity] = await Promise.all([
+      storage.getAllUsers(),
+      storage.getInvitedUsers(),
+      storage.getPendingAccessRequestCount(),
+      getActivitySummary(),
+    ]);
+
+    res.json({
+      total_users: allUsers.length,
+      admin_count: allUsers.filter((u) => u.role === "admin").length,
+      total_invites: invites.length,
+      pending_requests: pendingRequests,
+      activity_24h: activity,
+    });
+  });
+
+  // ── Admin: AI Usage ──
+
+  app.get("/api/admin/ai-usage", isAuthenticated, isAdmin, async (_req, res) => {
+    const summary = await storage.getAiUsageSummary();
+    res.json(summary);
   });
 
   // ── Reports ──

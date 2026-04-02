@@ -4,6 +4,7 @@ import { Lightbulb } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import ImagePicker from "@/components/ui/ImagePicker";
 import { useRecognizeItem, useGetUploadUrls } from "@/lib/mutations";
+import { getCurrentPosition } from "@/hooks/useGeolocation";
 import { compressImage, generateThumbnail } from "@/lib/utils";
 import axios from "axios";
 
@@ -20,12 +21,13 @@ export default function ScanItem() {
   const handleFileSelected = async (file: File | null) => {
     if (!file) return;
 
-    // 1. Compress and upload to GCS in parallel with AI recognition
+    // 1. Compress, upload, and capture GPS in parallel
     setStatus("uploading");
 
-    const [compressed, thumbnail] = await Promise.all([
+    const [compressed, thumbnail, geoPos] = await Promise.all([
       compressImage(file, 1600, 0.8),
       generateThumbnail(file, 256, 0.7),
+      getCurrentPosition(),
     ]);
 
     const fileName = `item_${Date.now()}.jpg`;
@@ -53,6 +55,10 @@ export default function ScanItem() {
           imageKey: urls.originalKey,
           thumbnailKey: urls.thumbnailKey,
         });
+        if (geoPos) {
+          queryParams.set("lat", String(geoPos.lat));
+          queryParams.set("lng", String(geoPos.lng));
+        }
         navigate(`/edit-item/new?${queryParams.toString()}`);
       },
       onError: () => {

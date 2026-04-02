@@ -1,6 +1,5 @@
 import { useState, useCallback } from "react";
 import { Package, Camera, TrendingUp, ArrowRight } from "lucide-react";
-// Camera still used in slide icons
 import Logo from "@/components/ui/Logo";
 
 interface OnboardingProps {
@@ -48,115 +47,192 @@ const slides: Slide[] = [
   },
 ];
 
+// Phases: splash → transition → slide-0 → slide-1 → slide-2 → done
+type Phase = "splash" | "transition" | "slide";
+
+// Timing tokens
+const SCALE_TRANSITION = "transform 400ms cubic-bezier(0.4, 0, 0.2, 1)";
+const OPACITY_TRANSITION = "opacity 300ms ease";
+const COMBINED = `${SCALE_TRANSITION}, ${OPACITY_TRANSITION}`;
+
 export default function Onboarding({ onGetStarted, onLogin }: OnboardingProps) {
-  const [phase, setPhase] = useState<"splash" | "slides">("splash");
+  const [phase, setPhase] = useState<Phase>("splash");
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [slidePhase, setSlidePhase] = useState<"entering" | "idle" | "exiting">("entering");
 
   const handleLetsGo = useCallback(() => {
-    setPhase("slides");
+    setPhase("transition");
+    setTimeout(() => {
+      setPhase("slide");
+      setSlidePhase("entering");
+      setTimeout(() => setSlidePhase("idle"), 50);
+    }, 400);
   }, []);
 
   const handleNext = useCallback(() => {
     if (currentSlide < slides.length - 1) {
-      setCurrentSlide((s) => s + 1);
+      setSlidePhase("exiting");
+      setTimeout(() => {
+        setCurrentSlide((s) => s + 1);
+        setSlidePhase("entering");
+        setTimeout(() => setSlidePhase("idle"), 50);
+      }, 350);
     } else {
       onGetStarted();
     }
   }, [currentSlide, onGetStarted]);
 
-  if (phase === "splash") {
-    return <SplashScreen onLetsGo={handleLetsGo} onLogin={onLogin} />;
-  }
+  const isSplashVisible = phase === "splash";
+  const isTransitioning = phase === "transition";
+  const isSlideVisible = phase === "slide";
+  const isSlideIdle = isSlideVisible && slidePhase === "idle";
+  const isSlideExiting = isSlideVisible && slidePhase === "exiting";
 
-  return <SlideScreen slide={slides[currentSlide]} index={currentSlide} total={slides.length} onNext={handleNext} />;
-}
-
-// ── Splash Screen ──
-
-function SplashScreen({ onLetsGo, onLogin }: { onLetsGo: () => void; onLogin: () => void }) {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-between py-12 px-6 animate-fadeIn">
-      <Logo size="lg" className="mt-8" />
-
-      <div className="w-64 h-64 rounded-3xl overflow-hidden shadow-card rotate-3 animate-float">
-        <img src="/wotIgot_splash.png" alt="Inventory made easy" className="w-full h-full object-cover" />
-      </div>
-
-      <div className="flex flex-col items-center gap-4 w-full">
-        <button
-          onClick={onLetsGo}
-          className="flex items-center gap-2 px-8 py-3.5 bg-text-dark text-white rounded-pill font-poppins font-semibold text-[15px] press-scale shadow-button"
-        >
-          Let's Go <ArrowRight size={18} />
-        </button>
-        <div className="font-dm text-sm text-text-grey">
-          Already have an account?{" "}
-          <span onClick={onLogin} className="font-semibold text-text-dark underline cursor-pointer" role="button">
-            Log In
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Slide Screen ──
-
-function SlideScreen({
-  slide,
-  index,
-  total,
-  onNext,
-}: {
-  slide: Slide;
-  index: number;
-  total: number;
-  onNext: () => void;
-}) {
+  const slide = slides[currentSlide];
   const Icon = slide.icon;
 
   return (
-    <div key={index} className="min-h-screen flex flex-col items-center justify-between py-12 px-6">
-      <div />
+    <div className="min-h-screen flex flex-col items-center justify-between py-12 px-6 overflow-hidden">
 
-      <div className="flex flex-col items-center animate-fadeIn" key={index}>
-        {/* Icon circle */}
-        <div className={`w-40 h-40 rounded-full ${slide.iconBg} flex items-center justify-center mb-8`}>
-          <Icon size={56} className={slide.iconColor} />
-        </div>
-
-        {/* Title */}
-        <h2 className="font-poppins font-bold text-2xl text-text-dark text-center">
-          {slide.titleTop}
-        </h2>
-        <h2 className={`font-poppins font-bold text-2xl ${slide.titleColor} text-center`}>
-          {slide.titleBottom}
-        </h2>
-
-        {/* Description */}
-        <p className="font-dm text-sm text-text-grey text-center mt-3 max-w-xs">
-          {slide.description}
-        </p>
+      {/* ── Splash layer ── */}
+      {/* Logo */}
+      <div
+        style={{
+          transition: COMBINED,
+          opacity: isSplashVisible ? 1 : 0,
+          transform: isSplashVisible ? "scale(1)" : "scale(0.9)",
+          pointerEvents: isSplashVisible ? "auto" : "none",
+        }}
+        className="mt-8"
+      >
+        <Logo size="lg" />
       </div>
 
-      {/* Pagination + Next */}
-      <div className="flex items-center justify-between w-full">
-        <div className="flex gap-2">
-          {Array.from({ length: total }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-2 rounded-full transition-all duration-300 ${
-                i === index ? "w-6 bg-text-dark" : "w-2 bg-text-muted/30"
-              }`}
-            />
-          ))}
-        </div>
-        <button
-          onClick={onNext}
-          className="w-12 h-12 rounded-xl bg-text-dark flex items-center justify-center press-scale shadow-button"
+      {/* Center area — shared by hero image and slide content */}
+      <div className="relative w-full flex items-center justify-center" style={{ minHeight: 280 }}>
+        {/* Hero image (splash) */}
+        <div
+          className="absolute"
+          style={{
+            transition: COMBINED,
+            opacity: isSplashVisible ? 1 : 0,
+            transform: isSplashVisible ? "scale(1) rotate(3deg)" : "scale(0.8) rotate(3deg)",
+            pointerEvents: "none",
+          }}
         >
-          <ArrowRight size={20} color="white" />
-        </button>
+          <div className="w-64 h-64 rounded-3xl overflow-hidden shadow-card animate-float">
+            <img src="/wotIgot_splash.png" alt="Inventory made easy" className="w-full h-full object-cover" />
+          </div>
+        </div>
+
+        {/* Slide content */}
+        <div
+          className="absolute flex flex-col items-center"
+          style={{
+            transition: COMBINED,
+            opacity: isSlideIdle ? 1 : 0,
+            transform: isSlideIdle ? "scale(1)" : isSlideExiting ? "scale(0.8)" : "scale(0.5)",
+            pointerEvents: isSlideVisible ? "auto" : "none",
+          }}
+        >
+          {/* Icon circle */}
+          <div
+            className={`w-40 h-40 rounded-full ${slide.iconBg} flex items-center justify-center mb-8`}
+            style={{
+              transition: `transform 400ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease`,
+              opacity: isSlideIdle ? 1 : 0,
+              transform: isSlideIdle ? "scale(1)" : "scale(0.5)",
+            }}
+          >
+            <Icon size={56} className={slide.iconColor} />
+          </div>
+
+          {/* Title */}
+          <div
+            style={{
+              transition: `transform 400ms cubic-bezier(0.4, 0, 0.2, 1) 150ms, opacity 300ms ease 150ms`,
+              opacity: isSlideIdle ? 1 : 0,
+              transform: isSlideIdle ? "translateY(0)" : "translateY(12px)",
+            }}
+          >
+            <h2 className="font-poppins font-bold text-2xl text-text-dark text-center">
+              {slide.titleTop}
+            </h2>
+            <h2 className={`font-poppins font-bold text-2xl ${slide.titleColor} text-center`}>
+              {slide.titleBottom}
+            </h2>
+          </div>
+
+          {/* Description */}
+          <p
+            className="font-dm text-sm text-text-grey text-center mt-3 max-w-xs"
+            style={{
+              transition: `transform 400ms cubic-bezier(0.4, 0, 0.2, 1) 250ms, opacity 300ms ease 250ms`,
+              opacity: isSlideIdle ? 1 : 0,
+              transform: isSlideIdle ? "translateY(0)" : "translateY(8px)",
+            }}
+          >
+            {slide.description}
+          </p>
+        </div>
+      </div>
+
+      {/* ── Bottom area — CTA buttons (splash) or pagination (slides) ── */}
+      <div className="w-full relative" style={{ minHeight: 56 }}>
+        {/* Splash CTA */}
+        <div
+          className="absolute inset-0 flex flex-col items-center gap-4"
+          style={{
+            transition: COMBINED,
+            opacity: isSplashVisible ? 1 : 0,
+            transform: isSplashVisible ? "scale(1)" : "scale(0.95)",
+            pointerEvents: isSplashVisible ? "auto" : "none",
+          }}
+        >
+          <button
+            onClick={handleLetsGo}
+            className="flex items-center gap-2 px-8 py-3.5 bg-text-dark text-white rounded-pill font-poppins font-semibold text-[15px] press-scale shadow-button"
+          >
+            Let's Go <ArrowRight size={18} />
+          </button>
+          <div className="font-dm text-sm text-text-grey">
+            Already have an account?{" "}
+            <span onClick={onLogin} className="font-semibold text-text-dark underline cursor-pointer" role="button">
+              Log In
+            </span>
+          </div>
+        </div>
+
+        {/* Slide pagination + next */}
+        <div
+          className="absolute inset-0 flex items-center justify-between"
+          style={{
+            transition: COMBINED,
+            opacity: isSlideVisible ? 1 : 0,
+            transform: isSlideVisible ? "scale(1)" : "scale(0.8)",
+            pointerEvents: isSlideVisible ? "auto" : "none",
+          }}
+        >
+          <div className="flex gap-2">
+            {Array.from({ length: slides.length }).map((_, i) => (
+              <div
+                key={i}
+                className="h-2 rounded-full"
+                style={{
+                  width: i === currentSlide ? 24 : 8,
+                  backgroundColor: i === currentSlide ? "var(--text-dark)" : "rgba(149, 165, 166, 0.3)",
+                  transition: "width 300ms cubic-bezier(0.2, 0, 0, 1), background-color 300ms ease",
+                }}
+              />
+            ))}
+          </div>
+          <button
+            onClick={handleNext}
+            className="w-12 h-12 rounded-xl bg-text-dark flex items-center justify-center press-scale shadow-button"
+          >
+            <ArrowRight size={20} color="white" />
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface ModalProps {
   open: boolean;
@@ -23,7 +24,7 @@ export default function Modal({ open, onClose, children }: ModalProps) {
 
   if (!shouldRender) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
@@ -32,7 +33,7 @@ export default function Modal({ open, onClose, children }: ModalProps) {
       />
       {/* Content */}
       <div
-        className={`relative bg-white rounded-2xl shadow-float w-full max-w-sm p-6 transition-all duration-300 ${
+        className={`relative bg-white rounded-2xl shadow-float w-full max-w-md p-6 transition-all duration-300 ${
           animating
             ? "opacity-100 scale-100 translate-y-0"
             : "opacity-0 scale-95 translate-y-4"
@@ -40,7 +41,8 @@ export default function Modal({ open, onClose, children }: ModalProps) {
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { UserPen, HelpCircle, FileText, Shield, LogOut, ChevronRight } from "lucide-react";
+import { UserPen, HelpCircle, FileText, Shield, LogOut, ChevronRight, ShieldCheck } from "lucide-react";
 import PageHeader from "@/components/ui/PageHeader";
 import Avatar from "@/components/ui/Avatar";
 import SectionLabel from "@/components/ui/SectionLabel";
@@ -18,7 +18,7 @@ export default function Settings() {
       <div className="px-4 py-4 space-y-4 animate-slideUp">
         {/* Profile card */}
         <div className="flex items-center gap-3 bg-white rounded-xl shadow-card-soft p-4">
-          <Avatar name={user.name} size="lg" />
+          <Avatar name={user.name} photoUrl={user.photo_url} size="lg" />
           <div>
             <p className="font-poppins font-semibold text-base text-text-dark">{user.name}</p>
             <p className="font-dm text-sm text-text-grey">{user.user_name}</p>
@@ -36,6 +36,19 @@ export default function Settings() {
           subtitle="Update your name and details"
           onClick={() => navigate("/edit-profile")}
         />
+
+        {/* Admin section — only visible to admins */}
+        {user.role === "admin" && (
+          <>
+            <SectionLabel>ADMIN</SectionLabel>
+            <SettingsItem
+              icon={<ShieldCheck size={20} className="text-orange" />}
+              title="Admin Console"
+              subtitle={user.pending_request_count ? `${user.pending_request_count} pending request${user.pending_request_count > 1 ? "s" : ""}` : "Users, invites, audit log"}
+              onClick={() => navigate("/admin")}
+            />
+          </>
+        )}
 
         {/* Support section */}
         <SectionLabel>SUPPORT</SectionLabel>

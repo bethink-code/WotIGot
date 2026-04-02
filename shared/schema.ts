@@ -39,7 +39,9 @@ export const users = pgTable(
     password: varchar("password"),
     google_id: varchar("google_id"),
     email: varchar("email"),
+    photo_url: varchar("photo_url"),
     role: userRoleEnum("role").default("user").notNull(),
+    terms_accepted_at: timestamp("terms_accepted_at"),
     created_at: timestamp("created_at").defaultNow().notNull(),
   },
   (table) => [
@@ -168,6 +170,60 @@ export const invitedUsers = pgTable(
   }
 );
 
+// --- Audit Logs ---
+
+export const auditLogs = pgTable(
+  "audit_log",
+  {
+    id: serial("id").primaryKey(),
+    user_id: integer("user_id"),
+    user_email: varchar("user_email"),
+    action: varchar("action").notNull(),
+    resource_type: varchar("resource_type"),
+    resource_id: varchar("resource_id"),
+    outcome: varchar("outcome").default("success").notNull(),
+    detail: varchar("detail"),
+    ip_address: varchar("ip_address"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    index("audit_log_user_id_idx").on(table.user_id),
+    index("audit_log_action_idx").on(table.action),
+    index("audit_log_created_at_idx").on(table.created_at),
+  ]
+);
+
+// --- Access Requests ---
+
+export const accessRequests = pgTable(
+  "access_request",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name").notNull(),
+    email: varchar("email").notNull(),
+    cell: varchar("cell"),
+    status: varchar("status").default("pending").notNull(),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  }
+);
+
+// --- AI Usage ---
+
+export const aiUsage = pgTable(
+  "ai_usage",
+  {
+    id: serial("id").primaryKey(),
+    user_id: integer("user_id"),
+    user_email: varchar("user_email"),
+    action: varchar("action").notNull(),
+    model: varchar("model").notNull(),
+    input_tokens: integer("input_tokens").default(0).notNull(),
+    output_tokens: integer("output_tokens").default(0).notNull(),
+    estimated_cost_usd: numeric("estimated_cost_usd"),
+    created_at: timestamp("created_at").defaultNow().notNull(),
+  }
+);
+
 // --- Inferred Types ---
 
 export type User = typeof users.$inferSelect;
@@ -182,6 +238,9 @@ export type ItemImage = typeof itemImages.$inferSelect;
 export type InsertItemImage = typeof itemImages.$inferInsert;
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type InvitedUser = typeof invitedUsers.$inferSelect;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type AccessRequest = typeof accessRequests.$inferSelect;
+export type AiUsage = typeof aiUsage.$inferSelect;
 
 export type PublicUserProfile = Pick<User, "id" | "user_name" | "name" | "role">;
 
@@ -244,6 +303,12 @@ export const updateProfileSchema = z.object({
 export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(6, "New password must be at least 6 characters"),
+});
+
+export const requestAccessSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email address"),
+  cell: z.string().optional(),
 });
 
 export const addItemImageSchema = z.object({

@@ -7,7 +7,7 @@ import { useDeleteHouse } from "@/lib/mutations";
 import { ConfirmModal } from "@/components/ui/Modal";
 import { formatRand } from "@/lib/utils";
 import { useState } from "react";
-import { Pencil, Trash2, FileSpreadsheet } from "lucide-react";
+import { Pencil, Trash2, FileSpreadsheet, MapPin } from "lucide-react";
 import { api } from "@/lib/api";
 import { downloadBlob } from "@/lib/utils";
 
@@ -47,6 +47,17 @@ export default function Property() {
           </div>
         }
       />
+
+      {/* Address verification status */}
+      <div className="px-4 pt-3 pb-1">
+        <div className="flex items-center gap-1.5">
+          <MapPin size={12} className={house.location_lat ? "text-green" : "text-text-muted"} />
+          <span className={`font-dm text-xs ${house.location_lat ? "text-green" : "text-text-muted"}`}>
+            {house.location_lat ? "Verified address" : "Address not verified"}
+          </span>
+        </div>
+        <p className="font-dm text-xs text-text-grey mt-0.5 ml-[18px]">{house.address}</p>
+      </div>
 
       <div className="px-4 py-4">
         {isLoading ? (

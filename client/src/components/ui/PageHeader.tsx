@@ -34,25 +34,27 @@ export default function PageHeader({
   const handleBack = onBack ?? (() => window.history.back());
 
   return (
-    <div className={`${colorStyles[color]} px-5 pt-5 pb-6 rounded-b-2xl`}>
-      <div className="flex items-center justify-between mb-2">
-        {showBack ? (
-          <button
-            onClick={handleBack}
-            className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center press-scale"
-          >
-            <ArrowLeft size={20} color="white" />
-          </button>
-        ) : (
-          <div />
+    <div className={`${colorStyles[color]} rounded-b-2xl -mx-[calc((100vw-100%)/2)] px-[calc((100vw-100%)/2)]`}>
+      <div className="max-w-[520px] mx-auto px-5 pt-5 pb-6">
+        <div className="flex items-center justify-between mb-2">
+          {showBack ? (
+            <button
+              onClick={handleBack}
+              className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center press-scale"
+            >
+              <ArrowLeft size={20} color="white" />
+            </button>
+          ) : (
+            <div />
+          )}
+          {right}
+        </div>
+        <h1 className="font-poppins font-bold text-xl text-white">{title}</h1>
+        {subtitle && (
+          <p className="font-dm text-sm text-white/80 mt-0.5">{subtitle}</p>
         )}
-        {right}
+        {children}
       </div>
-      <h1 className="font-poppins font-bold text-xl text-white">{title}</h1>
-      {subtitle && (
-        <p className="font-dm text-sm text-white/80 mt-0.5">{subtitle}</p>
-      )}
-      {children}
     </div>
   );
 }

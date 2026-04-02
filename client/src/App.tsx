@@ -24,6 +24,7 @@ import ScanItem from "@/pages/ScanItem";
 import EditItem from "@/pages/EditItem";
 import EditHouse from "@/pages/EditHouse";
 import EditRoom from "@/pages/EditRoom";
+import Admin from "@/pages/Admin";
 import GoogleCallback from "@/pages/GoogleCallback";
 
 export default function App() {
@@ -87,6 +88,7 @@ function AppContent() {
         <Route path="/inventory" component={Inventory} />
         <Route path="/reports" component={Reports} />
         <Route path="/settings" component={Settings} />
+        <Route path="/admin" component={Admin} />
         <Route path="/edit-profile" component={EditProfile} />
         <Route path="/change-password" component={ChangePassword} />
         <Route path="/add-house" component={AddProperty} />

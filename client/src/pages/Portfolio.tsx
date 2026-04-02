@@ -20,10 +20,10 @@ export default function Portfolio() {
       <PageHeader
         title=""
         color="green"
-        right={user ? <Avatar name={user.name} size="md" /> : undefined}
+        right={user ? <Avatar name={user.name} photoUrl={user.photo_url} size="md" navigateTo="/settings" /> : undefined}
       >
         <Logo size="sm" variant="white" className="mb-2" />
-        <p className="font-poppins font-bold text-2xl text-white">{formatRand(totalValue)}</p>
+        <p className="font-poppins font-bold text-2xl text-text-dark/80">{formatRand(totalValue)}</p>
         <p className="font-dm text-sm text-white/80">Total Portfolio Value</p>
       </PageHeader>
 
