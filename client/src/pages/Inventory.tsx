@@ -32,7 +32,7 @@ export default function Inventory() {
                 <DenseCard
                   title={`${item.brand} ${item.model}`}
                   subtitle={item.category}
-                  value={formatRand(item.price)}
+                  value={formatRand(Number(item.price || 0) * (item.amount || 1))}
                   badge={item.amount > 1 ? `x${item.amount}` : undefined}
                   thumbnail={item.image}
                   onClick={() => navigate(`/item/${item.id}`)}

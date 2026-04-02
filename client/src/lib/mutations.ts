@@ -192,7 +192,10 @@ export function useRecognizeItem() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("file", file);
-      return (await api.post("/items/recognition", formData, { headers: { "Content-Type": "multipart/form-data" } })).data;
+      return (await api.post("/items/recognition", formData, { headers: { "Content-Type": "multipart/form-data" } })).data as {
+        groups: Array<{ brand: string; model: string; price: number; category: string; count: number }>;
+        usage: { inputTokens: number; outputTokens: number; estimatedCostUsd: number };
+      };
     },
   });
 }
@@ -216,10 +219,45 @@ export function useReRecognize() {
   });
 }
 
+export function useBulkCreateItems() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (data: {
+      roomId: number;
+      imageKey: string;
+      thumbnailKey?: string;
+      lat?: number;
+      lng?: number;
+      items: Array<{ brand: string; model: string; category: string; price?: string; price_type?: string; amount?: number }>;
+    }) => {
+      return (await api.post("/items/bulk", data)).data;
+    },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["/items"] });
+      qc.invalidateQueries({ queryKey: [`/rooms/${vars.roomId}`] });
+      qc.invalidateQueries({ queryKey: ["/houses"] });
+      qc.invalidateQueries({ queryKey: ["/rooms"] });
+    },
+  });
+}
+
+export function useReEstimateFromKey() {
+  return useMutation({
+    mutationFn: async (data: { imageKey: string }) => {
+      return (await api.post("/items/re-estimate-from-key", data)).data as {
+        groups: Array<{ brand: string; model: string; price: number; category: string; count: number }>;
+        usage: { inputTokens: number; outputTokens: number; estimatedCostUsd: number };
+      };
+    },
+  });
+}
+
 export function useReEstimate() {
   return useMutation({
     mutationFn: async ({ itemId, ...data }: { itemId: number; brand?: string; model?: string; category?: string }) => {
-      return (await api.post(`/items/${itemId}/re-estimate`, data)).data;
+      return (await api.post(`/items/${itemId}/re-estimate`, data)).data as {
+        brand?: string; model?: string; category?: string; price?: number; amount?: number;
+      };
     },
   });
 }

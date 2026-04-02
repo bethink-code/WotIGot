@@ -276,6 +276,26 @@ export const reEstimateSchema = z.object({
   originalPrice: z.union([z.string(), z.number()]).optional(),
 });
 
+export const bulkCreateItemsSchema = z.object({
+  roomId: z.number(),
+  imageKey: z.string(),
+  thumbnailKey: z.string().optional(),
+  lat: z.number().optional(),
+  lng: z.number().optional(),
+  items: z.array(z.object({
+    brand: z.string().min(1),
+    model: z.string().min(1),
+    category: z.string().min(1),
+    price: z.string().optional(),
+    price_type: z.string().optional(),
+    amount: z.number().min(1).default(1),
+  })),
+});
+
+export const reEstimateFromKeySchema = z.object({
+  imageKey: z.string().min(1),
+});
+
 export const geocodeSchema = z.object({
   address: z.string().min(1, "Address is required"),
 });

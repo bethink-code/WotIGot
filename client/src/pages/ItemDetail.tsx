@@ -35,7 +35,7 @@ export default function ItemDetail() {
     reEstimate.mutate(
       { itemId, brand: item.brand, model: item.model, category: item.category },
       {
-        onSuccess: (result) => {
+        onSuccess: (result: any) => {
           setEstimating(false);
           const params = new URLSearchParams({
             brand: result.brand || item.brand,
@@ -91,12 +91,12 @@ export default function ItemDetail() {
         <div className="bg-white rounded-xl shadow-card p-4">
           <SectionLabel className="mb-2">VALUE</SectionLabel>
           <p className="font-poppins font-bold text-3xl text-text-dark">
-            {formatRand(item.price)}
+            {formatRand(Number(item.price || 0) * (item.amount || 1))}
           </p>
           <div className="flex items-center justify-between mt-1">
             <p className="font-dm text-xs text-text-muted">
               {item.price_type === "AI" ? "AI estimated" : item.price_type === "invoice" ? "From invoice" : "User entered"}
-              {item.amount > 1 && ` \u2013 ${item.amount} items`}
+              {item.amount > 1 && ` \u2013 ${formatRand(item.price)} \u00d7 ${item.amount}`}
             </p>
             <Button
               size="sm"

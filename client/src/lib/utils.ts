@@ -22,11 +22,21 @@ export function getInitials(name: string): string {
 /**
  * Compress an image file using canvas (max dimension, JPEG quality).
  */
+async function ensureJpegCompatible(file: File): Promise<Blob> {
+  const isHeic = file.type === "image/heic" || file.type === "image/heif"
+    || file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
+  if (!isHeic) return file;
+  const heic2any = (await import("heic2any")).default;
+  const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+  return Array.isArray(blob) ? blob[0] : blob;
+}
+
 export async function compressImage(
   file: File,
   maxDimension = 1600,
   quality = 0.8
 ): Promise<Blob> {
+  const source = await ensureJpegCompatible(file);
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -47,8 +57,8 @@ export async function compressImage(
         quality
       );
     };
-    img.onerror = reject;
-    img.src = URL.createObjectURL(file);
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = URL.createObjectURL(source);
   });
 }
 

@@ -13,6 +13,7 @@ import { geocodeAddress } from "./geocode";
 import {
   loginSchema, googleAuthSchema, insertHouseSchema, insertRoomSchema,
   insertItemSchema, addItemImageSchema, askPriceSchema, reEstimateSchema,
+  bulkCreateItemsSchema, reEstimateFromKeySchema,
   geocodeSchema, mediaUploadSchema, createUserSchema, updateUserSchema,
   updateProfileSchema, changePasswordSchema, requestAccessSchema, priceTypeNameMap,
 } from "../shared/schema";
@@ -360,8 +361,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/items/recognition", isAuthenticated, upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "File is required" });
-    const result = await recognizer.recognizeItem(req.file.buffer, req.file.mimetype);
-    res.json(result);
+    try {
+      const { groups, usage } = await recognizer.recognizeGroupedItems(req.file.buffer, req.file.mimetype);
+      storage.logAiUsage({ userId: req.user!.id, action: "recognition", model: "gemini-3-flash-preview", inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, estimatedCostUsd: usage.estimatedCostUsd });
+      res.json({ groups, usage });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Recognition failed" });
+    }
   });
 
   app.post("/api/items/ask-price", isAuthenticated, async (req, res) => {
@@ -372,48 +378,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(result);
   });
 
-  app.post("/api/items/re-recognize", isAuthenticated, upload.single("file"), async (req, res) => {
-    if (!req.file) return res.status(400).json({ message: "File is required" });
-
-    const parsed = reEstimateSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
-
-    const { brand, model, category, originalBrand, originalModel, originalCategory, originalPrice } = parsed.data;
-    const result = await recognizer.reEstimateFromFile(
-      req.file.buffer,
-      req.file.mimetype,
-      { brand, model, category },
-      { brand: originalBrand, model: originalModel, category: originalCategory, price: originalPrice ? Number(originalPrice) : undefined }
-    );
-    res.json(result);
-  });
-
   app.post("/api/items/:id/re-estimate", isAuthenticated, async (req, res) => {
     const item = await storage.getItemById(Number(req.params.id));
     if (!assertOwnership(item, req.user!.id, "Item", res)) return;
 
     // Use item.image or fall back to primary ItemImage
     let imageKey = item.image;
+    let thumbnailKey: string | null = null;
     if (!imageKey) {
       const images = await storage.getImagesByItem(item.id);
       const primary = images.find((img) => img.is_primary) || images[0];
       imageKey = primary?.url ?? null;
+      thumbnailKey = primary?.thumbnail_url ?? null;
     }
 
     if (!imageKey) return res.status(404).json({ message: "No image found for this item" });
 
-    const parsed = reEstimateSchema.safeParse(req.body);
+    // Resolve GCS key to a presigned URL, fetch the image, run grouped recognition
+    const imageUrl = await media.getPresignedReadUrl(imageKey);
+    const response = await fetch(imageUrl);
+    if (!response.ok) return res.status(500).json({ message: "Failed to fetch stored image" });
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const mimeType = response.headers.get("content-type") || "image/jpeg";
+
+    try {
+      const { groups, usage } = await recognizer.recognizeGroupedItems(buffer, mimeType);
+      storage.logAiUsage({ userId: req.user!.id, action: "re-estimate", model: "gemini-3-flash-preview", inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, estimatedCostUsd: usage.estimatedCostUsd });
+
+      // Find the group that best matches this item's brand/model
+      const itemBrand = item.brand.toLowerCase();
+      const itemModel = item.model.toLowerCase();
+      const match = groups.find((g) =>
+        g.brand.toLowerCase() === itemBrand || g.model.toLowerCase().includes(itemModel) || itemModel.includes(g.model.toLowerCase())
+      ) || groups[0];
+
+      res.json({
+        brand: match?.brand ?? item.brand,
+        model: match?.model ?? item.model,
+        category: match?.category ?? item.category,
+        price: match?.price ?? 0,
+        amount: match?.count ?? item.amount,
+      });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Re-estimation failed" });
+    }
+  });
+
+  // ── Bulk Create (from scan review) ──
+
+  app.post("/api/items/bulk", isAuthenticated, async (req, res) => {
+    const parsed = bulkCreateItemsSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
 
-    // Resolve GCS key to a presigned URL for the recognizer to fetch
-    const imageUrl = await media.getPresignedReadUrl(imageKey);
+    const room = await storage.getRoomById(parsed.data.roomId);
+    if (!assertOwnership(room, req.user!.id, "Room", res)) return;
 
-    const result = await recognizer.reEstimateFromUrl(
-      imageUrl,
-      { brand: parsed.data.brand, model: parsed.data.model, category: parsed.data.category },
-      { brand: item.brand, model: item.description || undefined, category: item.category, price: item.price ? Number(item.price) : undefined }
-    );
-    res.json(result);
+    const createdItems = [];
+    for (const itemData of parsed.data.items) {
+      const item = await storage.createItem({
+        room_id: room.id,
+        house_id: room.house_id,
+        owner_id: req.user!.id,
+        brand: itemData.brand,
+        model: itemData.model,
+        category: itemData.category,
+        price: itemData.price,
+        price_type: (itemData.price_type as "AI" | "user" | "invoice") || "AI",
+        amount: itemData.amount,
+        image: parsed.data.imageKey,
+      });
+
+      // Attach the scanned image as primary for each item
+      await storage.addImage({
+        item_id: item.id,
+        url: parsed.data.imageKey,
+        thumbnail_url: parsed.data.thumbnailKey || null,
+        is_primary: true,
+        location_lat: parsed.data.lat,
+        location_long: parsed.data.lng,
+      });
+
+      createdItems.push(item);
+    }
+
+    audit(req, { action: "item.bulk_create", resourceType: "item", resourceId: createdItems[0]?.id, detail: `${createdItems.length} items created` });
+    res.status(201).json(createdItems);
+  });
+
+  // ── Re-estimate from GCS key (for scan review) ──
+
+  app.post("/api/items/re-estimate-from-key", isAuthenticated, async (req, res) => {
+    const parsed = reEstimateFromKeySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errors: parsed.error.flatten() });
+
+    // Verify user owns this image key (keys are prefixed with userId/)
+    if (!parsed.data.imageKey.startsWith(`${req.user!.id}/`)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+
+    // Same grouped recognition as every other path
+    const imageUrl = await media.getPresignedReadUrl(parsed.data.imageKey);
+    const response = await fetch(imageUrl);
+    if (!response.ok) return res.status(500).json({ message: "Failed to fetch image" });
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const mimeType = response.headers.get("content-type") || "image/jpeg";
+
+    try {
+      const { groups, usage } = await recognizer.recognizeGroupedItems(buffer, mimeType);
+      storage.logAiUsage({ userId: req.user!.id, action: "re-estimate-from-key", model: "gemini-3-flash-preview", inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, estimatedCostUsd: usage.estimatedCostUsd });
+      res.json({ groups, usage });
+    } catch (err: any) {
+      res.status(500).json({ message: err.message || "Re-estimation failed" });
+    }
   });
 
   // ── Item Images ──

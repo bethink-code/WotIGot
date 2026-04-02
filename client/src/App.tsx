@@ -22,6 +22,7 @@ import AddProperty from "@/pages/AddProperty";
 import AddRoom from "@/pages/AddRoom";
 import ScanItem from "@/pages/ScanItem";
 import EditItem from "@/pages/EditItem";
+import ReviewScan from "@/pages/ReviewScan";
 import EditHouse from "@/pages/EditHouse";
 import EditRoom from "@/pages/EditRoom";
 import Admin from "@/pages/Admin";
@@ -94,6 +95,7 @@ function AppContent() {
         <Route path="/add-house" component={AddProperty} />
         <Route path="/add-room" component={AddRoom} />
         <Route path="/add-item" component={ScanItem} />
+        <Route path="/review-scan" component={ReviewScan} />
         <Route path="/edit-item/:id" component={EditItem} />
         <Route path="/edit-house/:id" component={EditHouse} />
         <Route path="/edit-room/:id" component={EditRoom} />

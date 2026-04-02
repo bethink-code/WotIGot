@@ -7,7 +7,7 @@ import Button from "@/components/ui/Button";
 import SectionLabel from "@/components/ui/SectionLabel";
 import { useImageUrl } from "@/hooks/useImageUrl";
 import { useItem } from "@/lib/queries";
-import { useCreateItem, useUpdateItem, useAddItemImage, useReEstimate, useReRecognize } from "@/lib/mutations";
+import { useCreateItem, useUpdateItem, useAddItemImage, useReEstimate } from "@/lib/mutations";
 import { useRooms } from "@/lib/queries";
 
 export default function EditItem() {
@@ -48,7 +48,6 @@ export default function EditItem() {
   const [originalPrice] = useState(params.get("price") || "");
 
   const reEstimate = useReEstimate();
-  const reRecognize = useReRecognize();
 
   // Preview the scanned image
   const previewUrl = useImageUrl(imageKey || existingItem?.image);
@@ -73,31 +72,20 @@ export default function EditItem() {
   }, [existingItem]);
 
   const handleReEstimate = () => {
-    if (!brand || !model || !category) return;
+    if (!brand || !model || !category || isNew) return;
     setEstimating(true);
 
-    if (isNew) {
-      // For new items, we don't have a stored image — but we don't have the raw file anymore either
-      // Use the existing item re-estimate approach won't work. The re-recognize needs a file.
-      // Fall back to re-estimate if we have an existing item, otherwise skip.
-      setEstimating(false);
-      return;
-    }
-
     reEstimate.mutate(
+      { itemId: Number(id), brand, model, category },
       {
-        itemId: Number(id),
-        brand, model, category,
-      },
-      {
-        onSuccess: (result) => {
+        onSuccess: (result: any) => {
+          setEstimating(false);
           if (result.brand) setBrand(result.brand);
           if (result.model) setModel(result.model);
           if (result.category) setCategory(result.category);
           if (result.price) setPrice(String(result.price));
           if (result.amount) setAmount(String(result.amount));
           setPriceType("AI");
-          setEstimating(false);
         },
         onError: () => setEstimating(false),
       }

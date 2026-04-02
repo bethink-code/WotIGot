@@ -16,55 +16,59 @@ export default function ScanItem() {
 
   const recognize = useRecognizeItem();
   const getUploadUrls = useGetUploadUrls();
-  const [status, setStatus] = useState<"idle" | "uploading" | "analyzing">("idle");
+  const [status, setStatus] = useState<"idle" | "uploading" | "analyzing" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
   const handleFileSelected = async (file: File | null) => {
     if (!file) return;
 
-    // 1. Compress, upload, and capture GPS in parallel
-    setStatus("uploading");
+    try {
+      // 1. Compress, upload, and capture GPS in parallel
+      setStatus("uploading");
 
-    const [compressed, thumbnail, geoPos] = await Promise.all([
-      compressImage(file, 1600, 0.8),
-      generateThumbnail(file, 256, 0.7),
-      getCurrentPosition(),
-    ]);
+      const [compressed, thumbnail, geoPos] = await Promise.all([
+        compressImage(file, 1600, 0.8),
+        generateThumbnail(file, 256, 0.7),
+        getCurrentPosition().catch(() => null),
+      ]);
 
-    const fileName = `item_${Date.now()}.jpg`;
-    const urls = await getUploadUrls.mutateAsync(fileName);
+      const fileName = `item_${Date.now()}.jpg`;
+      const urls = await getUploadUrls.mutateAsync(fileName);
 
-    // Upload original + thumbnail to GCS
-    await Promise.all([
-      axios.put(urls.originalUrl, compressed, { headers: { "Content-Type": "image/jpeg" } }),
-      axios.put(urls.thumbnailUrl, thumbnail, { headers: { "Content-Type": "image/jpeg" } }),
-    ]);
+      // Upload original + thumbnail to GCS
+      await Promise.all([
+        axios.put(urls.originalUrl, compressed, { headers: { "Content-Type": "image/jpeg" } }),
+        axios.put(urls.thumbnailUrl, thumbnail, { headers: { "Content-Type": "image/jpeg" } }),
+      ]);
 
-    // 2. Run AI recognition
-    setStatus("analyzing");
+      // 2. Run AI recognition
+      setStatus("analyzing");
 
-    recognize.mutate(file, {
-      onSuccess: (result) => {
-        const queryParams = new URLSearchParams({
-          roomId: roomId || "",
-          brand: result.brand || "",
-          model: result.model || "",
-          category: result.category || "",
-          price: String(result.price || ""),
-          amount: String(result.amount || 1),
-          priceType: "AI",
-          imageKey: urls.originalKey,
-          thumbnailKey: urls.thumbnailKey,
-        });
-        if (geoPos) {
-          queryParams.set("lat", String(geoPos.lat));
-          queryParams.set("lng", String(geoPos.lng));
-        }
-        navigate(`/edit-item/new?${queryParams.toString()}`);
-      },
-      onError: () => {
-        setStatus("idle");
-      },
-    });
+      // Send the compressed JPEG (not original HEIC) — Gemini needs a browser-compatible format
+      const recognitionFile = new File([compressed], "scan.jpg", { type: "image/jpeg" });
+      recognize.mutate(recognitionFile, {
+        onSuccess: ({ groups, usage }) => {
+          sessionStorage.setItem("scanResults", JSON.stringify({
+            groups,
+            usage,
+            roomId: roomId || "",
+            imageKey: urls.originalKey,
+            thumbnailKey: urls.thumbnailKey,
+            lat: geoPos?.lat,
+            lng: geoPos?.lng,
+          }));
+          navigate("/review-scan");
+        },
+        onError: (err: any) => {
+          setErrorMsg(err?.response?.data?.message || "Recognition failed. Please try again.");
+          setStatus("error");
+        },
+      });
+    } catch (err) {
+      console.error("[ScanItem] upload failed:", err);
+      setErrorMsg("Failed to upload photo. Please try again.");
+      setStatus("error");
+    }
   };
 
   return (
@@ -72,7 +76,20 @@ export default function ScanItem() {
       <PageHeader title="Scan Item" subtitle="Take or upload a photo" color="orange" showBack />
 
       <div className="flex-1 flex flex-col items-center justify-center px-4 py-8 animate-slideUp">
-        {status !== "idle" ? (
+        {status === "error" ? (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="w-16 h-16 rounded-full bg-danger/10 flex items-center justify-center">
+              <span className="text-danger text-2xl">!</span>
+            </div>
+            <p className="font-poppins font-semibold text-text-dark">{errorMsg}</p>
+            <button
+              onClick={() => { setStatus("idle"); setErrorMsg(""); }}
+              className="font-dm text-sm text-green underline"
+            >
+              Try again
+            </button>
+          </div>
+        ) : status !== "idle" ? (
           <AnalyzingState status={status} />
         ) : (
           <>
