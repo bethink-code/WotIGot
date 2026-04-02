@@ -361,6 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/items/recognition", isAuthenticated, upload.single("file"), async (req, res) => {
     if (!req.file) return res.status(400).json({ message: "File is required" });
+    console.log(`[recognition] file: ${req.file.originalname}, type: ${req.file.mimetype}, size: ${req.file.size} bytes`);
     try {
       const { groups, usage } = await recognizer.recognizeGroupedItems(req.file.buffer, req.file.mimetype);
       storage.logAiUsage({ userId: req.user!.id, action: "recognition", model: "gemini-3-flash-preview", inputTokens: usage.inputTokens, outputTokens: usage.outputTokens, estimatedCostUsd: usage.estimatedCostUsd });
