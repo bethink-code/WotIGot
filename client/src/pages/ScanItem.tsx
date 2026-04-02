@@ -66,9 +66,10 @@ export default function ScanItem() {
           setStatus("error");
         },
       });
-    } catch (err) {
-      console.error("[ScanItem] upload failed:", err);
-      setErrorMsg("Failed to upload photo. Please try again.");
+    } catch (err: any) {
+      console.error("[ScanItem] failed:", err);
+      const msg = err?.message || err?.response?.data?.message || String(err);
+      setErrorMsg(`Upload failed: ${msg}`);
       setStatus("error");
     }
   };

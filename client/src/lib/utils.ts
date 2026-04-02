@@ -23,12 +23,22 @@ export function getInitials(name: string): string {
  * Compress an image file using canvas (max dimension, JPEG quality).
  */
 async function ensureJpegCompatible(file: File): Promise<Blob> {
-  const isHeic = file.type === "image/heic" || file.type === "image/heif"
-    || file.name.toLowerCase().endsWith(".heic") || file.name.toLowerCase().endsWith(".heif");
+  const name = file.name.toLowerCase();
+  const type = file.type.toLowerCase();
+  const isHeic = type === "image/heic" || type === "image/heif"
+    || name.endsWith(".heic") || name.endsWith(".heif");
   if (!isHeic) return file;
-  const heic2any = (await import("heic2any")).default;
-  const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
-  return Array.isArray(blob) ? blob[0] : blob;
+
+  try {
+    const mod = await import("heic2any");
+    const convert = mod.default || mod;
+    const blob = await convert({ blob: file, toType: "image/jpeg", quality: 0.9 });
+    return Array.isArray(blob) ? blob[0] : blob;
+  } catch (err) {
+    console.error("[utils] HEIC conversion failed:", err);
+    // Fall back to original file — the browser may still handle it
+    return file;
+  }
 }
 
 export async function compressImage(
