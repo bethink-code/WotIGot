@@ -47,9 +47,11 @@ export default function ScanItem() {
       // Send the compressed JPEG (not original HEIC) — Gemini needs a browser-compatible format
       const recognitionFile = new File([compressed], "scan.jpg", { type: "image/jpeg" });
       recognize.mutate(recognitionFile, {
-        onSuccess: ({ groups, usage }) => {
+        onSuccess: (data) => {
+          const groups = data.groups ?? data;
+          const usage = data.usage ?? null;
           sessionStorage.setItem("scanResults", JSON.stringify({
-            groups,
+            groups: Array.isArray(groups) ? groups : [],
             usage,
             roomId: roomId || "",
             imageKey: urls.originalKey,

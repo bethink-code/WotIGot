@@ -65,7 +65,20 @@ export default function ReviewScan() {
       return;
     }
 
-    const data: ScanData = JSON.parse(raw);
+    let data: ScanData;
+    try {
+      data = JSON.parse(raw);
+      if (!Array.isArray(data.groups)) {
+        console.error("[ReviewScan] invalid scan data:", data);
+        navigate("/");
+        return;
+      }
+    } catch {
+      console.error("[ReviewScan] failed to parse scanResults");
+      navigate("/");
+      return;
+    }
+
     setGroups(
       data.groups.map((g, i) => ({
         ...g,
