@@ -69,7 +69,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         audit(req, { action: "auth.login_blocked", outcome: "denied", detail: "Email not invited" });
         return res.status(403).json({ message: "Your email has not been invited. Please request access." });
       }
-      res.status(401).json({ message: "Invalid Google token" });
+      console.error("[auth] Google token validation failed:", err.message);
+      res.status(401).json({ message: err.message || "Invalid Google token" });
     }
   });
 
